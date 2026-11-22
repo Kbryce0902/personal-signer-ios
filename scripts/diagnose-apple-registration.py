@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import plistlib
 import re
+import ssl
 import sys
 import tempfile
 from urllib.error import HTTPError, URLError
@@ -50,6 +51,8 @@ def request(stage, url, payload=None):
         reason = " (gateway could not connect upstream)" if b"upstream connect error" in maybe_proxy else ""
         raise SystemExit(f"{stage}: HTTP {error.code}{reason}") from None
     except URLError as error:
+        if isinstance(error.reason, ssl.SSLCertVerificationError):
+            raise SystemExit(f"{stage}: TLS verification failed ({error.reason.verify_message})") from None
         raise SystemExit(f"{stage}: network error {type(error.reason).__name__}") from None
     with response:
         print(f"{stage}: HTTP {response.status}", flush=True)

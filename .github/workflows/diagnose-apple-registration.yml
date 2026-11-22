@@ -29,4 +29,6 @@ jobs:
           g++ -std=c++17 -O2 -fPIC -shared -pthread -I"$unicorn/include" -I"$native/include" -I"$native" \
             "$native/anisette_base.cpp" "$native/Loader/elf_loader_emulator.cpp" "$native/anisette_core_uc.cpp" \
             "$unicorn/lib/libunicorn.a" -o "$scratch/libanisette-test.so"
+          printf '\nChecking the Apple server certificate chain with the runner trust store.\n'
+          openssl s_client -connect gsa.apple.com:443 -servername gsa.apple.com -verify_hostname gsa.apple.com -verify_return_error </dev/null 2>&1 | awk '/depth=|verify error|subject=|issuer=|Verify return code/' || true
           "$scratch/venv/bin/python" scripts/diagnose-apple-registration.py "$scratch"
