@@ -19,13 +19,18 @@ def prepare(xcframework: Path) -> None:
         framework.mkdir()
         (source / "libapple_auth.a").rename(framework / "apple_auth")
         (source / "Headers").rename(framework / "Headers")
+        headers = framework / "Headers"
+        source_headers = headers / "apple_auth"
+        for header in source_headers.iterdir():
+            header.rename(headers / header.name)
+        source_headers.rmdir()
         modules = framework / "Modules"
         modules.mkdir()
-        old_map = framework / "Headers" / "module.modulemap"
+        old_map = headers / "module.modulemap"
         module = old_map.read_text()
         if not module.startswith("module apple_auth {"):
             raise ValueError("Unexpected AppleAuth module name")
-        (modules / "module.modulemap").write_text("framework " + module)
+        (modules / "module.modulemap").write_text("framework " + module.replace('"apple_auth/', '"'))
         old_map.unlink()
         (framework / "Info.plist").write_bytes(plistlib.dumps({
             "CFBundleExecutable": "apple_auth",
