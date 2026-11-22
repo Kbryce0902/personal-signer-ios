@@ -10,7 +10,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 
 ## Decisions
 
-- SideSign `752d1ef602aa792a432ffa1e71646dc1ecf7363c` supplies Apple authentication, provisioning and signing. AnisetteKit `db8b41022697b6c19be8a5f01a1ce834145a2a26` generates the authentication metadata locally. The user supplies the two Apple ARM64 ADI libraries separately.
+- SideSign `752d1ef602aa792a432ffa1e71646dc1ecf7363c` supplies Apple Account authentication, provisioning and signing. Build 5 generates metadata in process with AppleAuth v0.1.3. AnisetteKit `db8b41022697b6c19be8a5f01a1ce834145a2a26` still supplies the header types SideSign uses. Builds 1 through 4 used Apple Music's Android ADI binaries.
 - minimuxer `12be70dc2627307a16bfd2dc7a009080d5bec909` connects to the trusted Remote Pairing service and Apple installation proxy. The App Store build of LocalDevVPN supplies the tunnel. Embedding an iOS Packet Tunnel Provider would require `com.apple.developer.networking.networkextension` with `packet-tunnel-provider`. The Personal Team signer uses Local Network permission and the companion's tunnel.
 - The proof checks the device, certificate, signing team and application identifier in the Apple profile before sending a bundle. It preserves the original signed app identity. The app never removes an installed app or revokes a signing certificate automatically.
 - Probe receipts depend on terminal completion from the paired installation proxy. Before submitting self-refresh, the signer records the expected profile UUID, expiry, build, signed resource stamp and app identity. The next launch checks them against the running copy before recording success. A failed or interrupted install leaves the previous receipt available.
@@ -23,7 +23,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 bash scripts/build-ipas.sh
 ```
 
-Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision, applies and verifies `scripts/anisette-cleanup.patch`, and verifies the AppleAuth v0.1.3 package archive against a pinned SHA-256. It builds `PersonalSigner` at build 5 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
+Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision, applies and verifies `scripts/anisette-cleanup.patch`, and verifies the AppleAuth v0.1.3 package archive against a pinned SHA-256. It rewraps AppleAuth’s static library for each slice in its own framework so Xcode can load it alongside IDevice without a duplicate header-map output. It builds `PersonalSigner` at build 5 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
 
 The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2. It signs in to neither Apple nor the test iPhone. Use the provenance recorded below to identify the exact source and runner for a test build.
 
@@ -39,9 +39,13 @@ GitHub Actions [run 45053651755](https://github.com/Kbryce0902/personal-signer-i
 
 Build 4 compiled and passed unsigned IPA verification with Xcode 27.2 in [run 45056325758](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45056325758) from `2531f6ab5435d77892c0a9a208e9dd74ae2a6939`. The signer IPA SHA-256 is `7584852bb7967ef12d9437eb75c35381d5eec4cfe416e79747e47f23c913d6eb`.
 
+Build 5 compiled with Xcode 27.2 in [run 45059443851](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45059443851) from `b935e8ced0faa67d9b56db3cc3c2cbf37dcff26f`. The downloaded build passed the unsigned arm64 iPhoneOS checks, bundle identity and build metadata checks, and AppleAuth linkage check. The signer IPA SHA-256 is `edd72daeb9b107d02f3d2348af2a154b6303084a7d9919af7f2bcf3c94b174e8`.
+
 ## Build 5 provider decision
 
 The account-free comparison in [run 45056913451](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45056913451) reproduced the Android-backed provider's HTTP 401 at Apple registration finish. Patched cancellation returned ADI 0 both before a successful second native start and after the rejected network finish. With AppleAuth v0.1.3 on macOS, the lookup, start and finish all returned HTTP 200 and the provider generated both authentication fields. The alternate test used AppleAuth's Mac ADI mode and the canonical `Mac OS X` client-info spelling. No user account or password was used.
+
+The [state restoration test](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45059069398) used AppleAuth's default transport and verified the required metadata fields, excluding SideSign's optional serial number fallback. After serialization and restoration it generated metadata for the same provider identity with every network request disabled.
 
 Build 5 uses the checksum-pinned AppleAuth release for local metadata, with the same profile as the successful account-free test. It stores the provider state in the device-only Keychain. It uses a fresh account sign-in keychain entry because the provider identity changed. SideSign still handles account credentials, 2FA, certificates, Apple provisioning and signing. The signing bundle ID, pairing state, development key and update identity rules stay in place. No Apple Music library import is required for build 5. Validate the iOS trust path and AppleAuth-to-SideSign header conversion through **Check Apple Setup** on the phone before credential entry.
 
@@ -76,7 +80,7 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 | --- | --- | --- |
 | USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch through build 3 |
 | Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | User reported trusted connection |
-| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Blocked. Build 3 reported local HTTP `401`, then ADI `-45063` |
+| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Build 3 reported HTTP `401`, then ADI `-45063`. Build 5 provider registered successfully in a standalone macOS test. Build 5 on the iPhone is pending |
 | First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | Pending |
 | Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
 | In-place upgrade | Import and install build 2 with build 1 still present. Confirm build 2, a new install stamp and the original saved value. | Pending |
