@@ -6,7 +6,7 @@ Updated November 22, 2026. Target hardware is an iPhone 18 Pro Max running iOS 2
 
 The workspace started empty. It now contains the SwiftUI signer proof, a local-value test app, pinned package resolution, macOS IPA packaging, and Windows setup and recovery instructions.
 
-The build workspace is x86_64 Linux with no Xcode, Apple SDK, Swift toolchain or USB iPhone access. The read-only Windows USB preflight timed out and the PC subsequently reported offline. No iPhone has been paired in this session. Apple sign-in, code signing, installation and refresh have no hardware results. The Xcode project remains uncompiled and no IPA was created.
+The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone access. The initial Windows USB preflight timed out. GitHub Actions compiled and packaged the signer and both Storage Probe builds on a macOS runner. iPhone pairing, Apple provisioning, installation and refresh still need hardware results.
 
 ## Decisions
 
@@ -29,7 +29,7 @@ The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2.
 
 ## GitHub build status
 
-The build repository is [Kbryce0902/personal-signer-ios](https://github.com/Kbryce0902/personal-signer-ios). The workflow and IPA verifier are ready. The pinned minimuxer source and all four third-party framework releases were found. The first Xcode build has yet to be verified.
+GitHub Actions [run 45048110063](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45048110063) succeeded using Xcode 27.2 build `27B52` on source commit `95f1e8f5be00c62a380123a47cc1e1564c53bca8`. The job's `PersonalSigner-unsigned-ipas` artifact contains the signer IPA, both Storage Probe IPAs and `SHA256SUMS`. The archive digest matched on download. The three IPAs also passed the local arm64 iPhoneOS, unsigned bundle metadata and SHA-256 checks.
 
 ## Workspace checks
 
@@ -40,7 +40,8 @@ The build repository is [Kbryce0902/personal-signer-ios](https://github.com/Kbry
 | Bash script syntax and build environment preflight | Passed. Running the script stopped at the macOS/Xcode prerequisite with exit code 2 |
 | Windows PowerShell preflight | Source reviewed. Remote Windows call timed out, and PowerShell is unavailable in the workspace |
 | IPA verification | Passed synthetic arm64 device, simulator, embedded-profile and wrong-identity fixtures |
-| Swift compilation and IPA packaging from compiled iPhoneOS bundles | Pending macOS build |
+| Swift compilation and IPA packaging | Passed on Xcode 27.2 for the signer and both Storage Probe builds |
+| Downloaded IPA verification | All three SHA-256 digests matched. Executables target arm64 iPhoneOS and the bundles contain no provisioning profiles |
 
 ## Hardware acceptance matrix
 
@@ -61,4 +62,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Run the Xcode build and resolve any compilation or package errors first. On the phone, confirm the LocalDevVPN-to-Remote-Pairing route before Apple sign-in. If iOS 27.2.1 rejects the route, capture the step and sanitized error. Continue to general IPA support, the release queue and notifications after the device matrix passes.
+Install the proof signer over USB using [WINDOWS-SETUP.md](WINDOWS-SETUP.md). On the phone, confirm the LocalDevVPN-to-Remote-Pairing route before Apple sign-in. If iOS 27.2.1 rejects the route, capture the step and sanitized error. Continue to general IPA support, the release queue and notifications after the device matrix passes.

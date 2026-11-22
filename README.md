@@ -1,6 +1,6 @@
 # Personal Signer
 
-Native SwiftUI proof project for an iPhone 18 Pro Max on iOS 27.2.1. It implements the candidate on-device sign, install and self-refresh workflow for the supplied Storage Probe app. The source needs its first Xcode build and real-device trial.
+Native SwiftUI proof project for an iPhone 18 Pro Max on iOS 27.2.1. It implements the candidate on-device sign, install and self-refresh workflow for the supplied Storage Probe app. The arm64 IPAs passed build and archive verification under Xcode 27.2. Pairing, installation and refresh still need a real-device trial. [Verified GitHub Actions build](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45048110063)
 
 The signer uses Apple Personal Team provisioning and an iPhone-approved Remote Pairing record. The App Store build of LocalDevVPN supplies the local tunnel. Embedding a Packet Tunnel Provider requires the `com.apple.developer.networking.networkextension` entitlement with the `packet-tunnel-provider` value. The free-signed signer relies on the companion for that capability. Apple sign-in uses on-device metadata generation and two user-supplied Apple Music ARM64 libraries. The app has no remote signing or anisette endpoint. [Apple Network Extensions entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension) · [LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044) · [AnisetteKit](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
 
