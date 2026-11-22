@@ -10,15 +10,18 @@ import sys
 import tempfile
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPSHandler, HTTPRedirectHandler, Request, build_opener
 from uuid import uuid4
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args):
         return None
 
-opener = build_opener(NoRedirect)
 runtime = Path(sys.argv[1]).resolve()
+trust = ssl.create_default_context()
+for name in ("apple-root.cer", "apple-root-g3.cer"):
+    trust.load_verify_locations(cadata=(runtime / name).read_bytes())
+opener = build_opener(NoRedirect, HTTPSHandler(context=trust))
 constants = Path(".build-dependencies/AnisetteKit/Sources/Constants.swift").read_text()
 identifier = uuid4()
 
