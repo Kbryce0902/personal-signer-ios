@@ -6,7 +6,7 @@ Updated November 22, 2026. Target hardware is an iPhone 18 Pro Max running iOS 2
 
 The workspace started empty. It now contains the SwiftUI signer proof, a local-value test app, pinned package resolution, macOS IPA packaging, and Windows setup and recovery instructions.
 
-The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone access. The initial Windows USB preflight timed out. GitHub Actions compiled and packaged the signer and both Storage Probe builds on a macOS runner. iPhone pairing, Apple provisioning, installation and refresh still need hardware results.
+The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone access. The initial Windows USB preflight timed out. GitHub Actions compiled and packaged the signer and both Storage Probe builds on a macOS runner. The user confirmed that the signer installed through iLoader and opened on the iPhone. Trusted pairing, on-device Apple provisioning, installation of Storage Probe and refresh still need hardware results.
 
 ## Decisions
 
@@ -49,7 +49,8 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 | Scenario | Acceptance evidence | Result |
 | --- | --- | --- |
-| USB bootstrap and pairing | Signer launches with a Personal Team profile. Import the USB Remote Pairing record. **Check Connection** receives a live response from this iPhone. | Pending |
+| USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch |
+| Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | Pending |
 | Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Pending |
 | First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | Pending |
 | Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
@@ -62,4 +63,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Install the proof signer over USB using [WINDOWS-SETUP.md](WINDOWS-SETUP.md). On the phone, confirm the LocalDevVPN-to-Remote-Pairing route before Apple sign-in. If iOS 27.2.1 rejects the route, capture the step and sanitized error. Continue to general IPA support, the release queue and notifications after the device matrix passes.
+Export and import the trusted Remote Pairing record using [WINDOWS-SETUP.md](WINDOWS-SETUP.md). On the phone, confirm the LocalDevVPN-to-Remote-Pairing route before Apple sign-in. If iOS 27.2.1 rejects the route, capture the step and sanitized error. Continue to general IPA support, the release queue and notifications after the device matrix passes.
