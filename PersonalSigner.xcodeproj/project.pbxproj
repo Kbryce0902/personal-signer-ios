@@ -1,0 +1,265 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00000000000000000000015 /* ProofFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000B /* ProofFiles.swift */; };
+		B00000000000000000000016 /* AppleSigning.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000C /* AppleSigning.swift */; };
+		B00000000000000000000017 /* PairedDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000D /* PairedDevice.swift */; };
+		B00000000000000000000018 /* ProofController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000E /* ProofController.swift */; };
+		B00000000000000000000019 /* SignerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000F /* SignerApp.swift */; };
+		B0000000000000000000001A /* StorageProbeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000010 /* StorageProbeApp.swift */; };
+		B0000000000000000000001F /* SideSign in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000025 /* SideSign */; };
+		B00000000000000000000020 /* Minimuxer in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000026 /* Minimuxer */; };
+		B00000000000000000000021 /* AnisetteKit in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000027 /* AnisetteKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B0000000000000000000000B /* ProofFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProofFiles.swift; sourceTree = "<group>"; };
+		B0000000000000000000000C /* AppleSigning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSigning.swift; sourceTree = "<group>"; };
+		B0000000000000000000000D /* PairedDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairedDevice.swift; sourceTree = "<group>"; };
+		B0000000000000000000000E /* ProofController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProofController.swift; sourceTree = "<group>"; };
+		B0000000000000000000000F /* SignerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignerApp.swift; sourceTree = "<group>"; };
+		B00000000000000000000010 /* StorageProbeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageProbeApp.swift; sourceTree = "<group>"; };
+		B00000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B00000000000000000000012 /* PersonalSigner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PersonalSigner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000013 /* StorageProbe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StorageProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B00000000000000000000029 /* Signer frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (B0000000000000000000001F, B00000000000000000000020, B00000000000000000000021);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B0000000000000000000002A /* Probe frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B00000000000000000000002 = {
+			isa = PBXGroup;
+			children = (B00000000000000000000003 /* Signer */, B00000000000000000000004 /* StorageProbe */, B00000000000000000000005 /* Products */);
+			sourceTree = "<group>";
+		};
+		B00000000000000000000003 /* Signer */ = {
+			isa = PBXGroup;
+			children = (B0000000000000000000000B, B0000000000000000000000C, B0000000000000000000000D, B0000000000000000000000E, B0000000000000000000000F, B00000000000000000000011);
+			path = Signer;
+			sourceTree = "<group>";
+		};
+		B00000000000000000000004 /* StorageProbe */ = {
+			isa = PBXGroup;
+			children = (B00000000000000000000010);
+			path = StorageProbe;
+			sourceTree = "<group>";
+		};
+		B00000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (B00000000000000000000012, B00000000000000000000013);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B00000000000000000000006 /* PersonalSigner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B00000000000000000000035;
+			buildPhases = (B0000000000000000000002B, B00000000000000000000029, B0000000000000000000002D);
+			buildRules = ();
+			dependencies = ();
+			name = PersonalSigner;
+			packageProductDependencies = (B00000000000000000000025, B00000000000000000000026, B00000000000000000000027);
+			productName = PersonalSigner;
+			productReference = B00000000000000000000012;
+			productType = "com.apple.product-type.application";
+		};
+		B00000000000000000000007 /* StorageProbe */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B00000000000000000000036;
+			buildPhases = (B0000000000000000000002C, B0000000000000000000002A, B0000000000000000000002E);
+			buildRules = ();
+			dependencies = ();
+			name = StorageProbe;
+			packageProductDependencies = ();
+			productName = StorageProbe;
+			productReference = B00000000000000000000013;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2720; };
+			buildConfigurationList = B00000000000000000000034;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = B00000000000000000000002;
+			packageReferences = (B00000000000000000000022, B00000000000000000000023, B00000000000000000000024);
+			productRefGroup = B00000000000000000000005;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (B00000000000000000000006, B00000000000000000000007);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B0000000000000000000002D = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		B0000000000000000000002E = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B0000000000000000000002B = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (B00000000000000000000015, B00000000000000000000016, B00000000000000000000017, B00000000000000000000018, B00000000000000000000019);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B0000000000000000000002C = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (B0000000000000000000001A);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		B0000000000000000000003D = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B0000000000000000000003E = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		B0000000000000000000003F = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Signer/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kellen.personalsigner.proof;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B00000000000000000000040 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Signer/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kellen.personalsigner.proof;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B00000000000000000000041 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Storage Probe";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kellen.personalsigner.storageprobe;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B00000000000000000000042 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Storage Probe";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kellen.personalsigner.storageprobe;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B00000000000000000000034 = {isa = XCConfigurationList; buildConfigurations = (B0000000000000000000003D, B0000000000000000000003E); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B00000000000000000000035 = {isa = XCConfigurationList; buildConfigurations = (B0000000000000000000003F, B00000000000000000000040); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B00000000000000000000036 = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000041, B00000000000000000000042); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B00000000000000000000022 = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/SideStore/SideSign.git"; requirement = {kind = revision; revision = 752d1ef602aa792a432ffa1e71646dc1ecf7363c; }; };
+		B00000000000000000000024 = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/mahee96/AnisetteKit.git"; requirement = {kind = branch; branch = main; }; };
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B00000000000000000000023 = {isa = XCLocalSwiftPackageReference; relativePath = ".build-dependencies/minimuxer"; };
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B00000000000000000000025 = {isa = XCSwiftPackageProductDependency; package = B00000000000000000000022; productName = SideSign; };
+		B00000000000000000000026 = {isa = XCSwiftPackageProductDependency; package = B00000000000000000000023; productName = Minimuxer; };
+		B00000000000000000000027 = {isa = XCSwiftPackageProductDependency; package = B00000000000000000000024; productName = AnisetteKit; };
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = B00000000000000000000001 /* Project object */;
+}
