@@ -41,7 +41,11 @@ GitHub Actions [run 45053651755](https://github.com/Kbryce0902/personal-signer-i
 
 `-45063` is the pending local ADI session code. In the pinned AnisetteKit source, the Unicorn provider keeps its VM alive for the process and starts a native session before the request to Apple that finishes provisioning. The high-level client does not cancel that session if the next step fails. [ADI error mapping](https://github.com/Dadoum/Provision/blob/main/lib/provision/adi.d) · [Pinned AnisetteKit source](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
 
-Build 3 wraps the upstream provider and calls its native cancel function on a failed attempt with a tracked session. It displays fixed messages for start, finish and local authentication-data generation failures. An untracked pending session requires a fresh process. Fully close Personal Signer from the iOS app switcher, reopen it and try sign-in once. Keep existing pairing, bundle identity and Keychain entries. Keep LocalDevVPN off during this sign-in check. The first error on a fresh process is the evidence needed if sign-in still fails.
+Build 3 installed and launched on the target iPhone. The first captured sign-in error was `Local Apple authentication failed` with HTTP `401`. The next attempt showed ADI `-45063`. The first error occurs before account or team checks. Build 3 does not display whether the 401 came from lookup, start or finish. The pending session on retry and [the same sequence reported upstream](https://github.com/SideStore/SideStore/issues/1749) point to the request that finishes a new ADI registration (`midFinishProvisioning`, also called PTM/TK). This is the leading inference. [Upstream report with the finish endpoint named](https://github.com/SideStore/SideStore/issues/1745).
+
+Build 3 called the native cancel function, but the pinned Unicorn implementation resolves `n388H58b` and returns success even when the symbol is absent or the call fails. `readelf --dyn-syms --wide` on both ARM64 libraries from Apple's current Android download showed neither exports `n388H58b`. `libstoreservicescore.so` exports `fy34trz2st`, the destroy routine used in [Dadoum/Provision](https://github.com/Dadoum/Provision/blob/main/lib/provision/adi.d). The examined `libstoreservicescore.so` SHA-256 is `bd335e6963ba5ae2f5babca613435ad56d2660a9aee37df35f876c458d105ce4`. A cleanup fix should use the verified routine and preserve its result. It will need a separate test for the original 401.
+
+The existing sign-in dependency is Apple's acceptance of the on-device ADI registration. The public Personal Team workflow documented by Apple uses Xcode. A Linux diagnostic compiled the same Unicorn loader and stopped on HTTP 503 at Apple lookup without an account, so it could not independently reproduce the iPhone's finish-stage inference. No new IPA was issued for these errors. The installed build can stay in place. A fresh process clears the in-memory session. It supplies no fix for the upstream HTTP rejection. [Apple Personal Team documentation](https://developer.apple.com/help/account/basics/about-your-developer-account/)
 
 ## Workspace checks
 
@@ -61,9 +65,9 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 | Scenario | Acceptance evidence | Result |
 | --- | --- | --- |
-| USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch |
+| USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch through build 3 |
 | Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | User reported trusted connection |
-| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Build 2 reported ADI `-45063`. Awaiting a build 3 retry |
+| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Blocked. Build 3 reported local HTTP `401`, then ADI `-45063` |
 | First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | Pending |
 | Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
 | In-place upgrade | Import and install build 2 with build 1 still present. Confirm build 2, a new install stamp and the original saved value. | Pending |
@@ -75,4 +79,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Finish a fresh sign-in attempt on build 3 before advancing to Storage Probe. If it fails, record the first displayed stage and code after launch. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix before expanding IPA support or building out notifications and the release queue.
+Verify successful new on-device ADI registration with a compatible provider or upstream update before issuing a sign-in fix. In the next diagnostic build, preserve a fixed lookup, start or finish label alongside the HTTP status and validate native cleanup with an interrupted provisioning test. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix.
