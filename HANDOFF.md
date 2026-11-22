@@ -80,8 +80,8 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 | --- | --- | --- |
 | USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch through build 5 |
 | Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | User reported trusted connection |
-| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | User confirmed sign-in on build 5 on November 22, 2026. The PC power state during sign-in and first on-device development profile issuance remain unverified |
-| First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | Pending |
+| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | User confirmed sign-in on build 5 on November 22, 2026. Also reported success on the first Storage Probe installation. PC power state and profile expiry were not recorded |
+| First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | User reported success following the first-install instructions. PC power state, install stamp and saved value were not independently recorded |
 | Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
 | In-place upgrade | Import and install build 2 with build 1 still present. Confirm build 2, a new install stamp and the original saved value. | Pending |
 | Self-refresh | Choose **Refresh Probe, Then Signer**. Confirm the probe finishes before the signer updates. Reopen the signer and check the receipt, same identity, retained Keychain session and later expiry. A reinstall with the same expiry is partial evidence. | Pending |
@@ -92,4 +92,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Build 5 sign-in succeeded on the iPhone. With the PC unplugged and off, connect LocalDevVPN and verify the paired connection. Import the unsigned Storage Probe build 1 and confirm Apple profile issuance and first installation. Open the Probe and save a value before testing an in-place refresh. Continue the hardware matrix before expanding the proof.
+Build 5 sign-in succeeded on the iPhone. The user reported success on the first Storage Probe install. With the PC unplugged and powered off, refresh the same Probe build over LocalDevVPN. Verify that its stamp changes and the saved value survives. Record the expiration displayed by Personal Signer before and after the refresh. Continue the hardware matrix before expanding the proof.
