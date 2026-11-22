@@ -35,6 +35,8 @@ GitHub Actions [run 45052192852](https://github.com/Kbryce0902/personal-signer-i
 
 Build 1 failed at on-device sign-in with a generic message. Build 2 reports whether local Apple authentication, Apple Account sign-in, or Personal Team lookup failed. It displays numeric error codes when available and keeps Apple response contents off the screen. On iPhone, build 2 reported `Local Apple authentication failed` with ADI `-45063` before Apple Account sign-in.
 
+GitHub Actions [run 45053651755](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45053651755) built signer build 3 from `be1cba97f5f76b8b4a0947e14335ceee0f02bdb1` with Xcode 27.2. The downloaded IPA passed the arm64 iPhoneOS, unsigned bundle and SHA-256 checks. Signer SHA-256 is `468f0690f602f01818571ccac7aa6f3c9a7aa31262131e3547942080b10f977c`. Install over build 2 using the original iLoader identity and retry sign-in on the iPhone.
+
 ## ADI retry recovery
 
 `-45063` is the pending local ADI session code. In the pinned AnisetteKit source, the Unicorn provider keeps its VM alive for the process and starts a native session before the request to Apple that finishes provisioning. The high-level client does not cancel that session if the next step fails. [ADI error mapping](https://github.com/Dadoum/Provision/blob/main/lib/provision/adi.d) · [Pinned AnisetteKit source](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
@@ -73,4 +75,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Export and import the trusted Remote Pairing record using [WINDOWS-SETUP.md](WINDOWS-SETUP.md). On the phone, confirm the LocalDevVPN-to-Remote-Pairing route before Apple sign-in. If iOS 27.2.1 rejects the route, capture the step and sanitized error. Continue to general IPA support, the release queue and notifications after the device matrix passes.
+Finish a fresh sign-in attempt on build 3 before advancing to Storage Probe. If it fails, record the first displayed stage and code after launch. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix before expanding IPA support or building out notifications and the release queue.
