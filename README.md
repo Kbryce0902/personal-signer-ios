@@ -1,12 +1,12 @@
 # Personal Signer
 
-Native SwiftUI proof project for an iPhone 18 Pro Max on iOS 27.2.1. It implements the candidate on-device sign, install and self-refresh workflow for the supplied Storage Probe app. The arm64 IPAs passed build and archive verification under Xcode 27.2. Pairing, installation and refresh still need a real-device trial. [Verified GitHub Actions build](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45048110063)
+Native SwiftUI iPhone signer using Apple Personal Team provisioning. Build 5 signed in on an iPhone 18 Pro Max on iOS 27.2.1. The user reported that Storage Probe installed and refreshed with its saved value intact. Build 6 adds imported personal apps and retains the Storage Probe receipt for the hardware tests tracked in [HANDOFF.md](HANDOFF.md).
 
-The signer uses Apple Personal Team provisioning and an iPhone-approved Remote Pairing record. The App Store build of LocalDevVPN supplies the local tunnel. Embedding a Packet Tunnel Provider requires the `com.apple.developer.networking.networkextension` entitlement with the `packet-tunnel-provider` value. The free-signed signer relies on the companion for that capability. Apple sign-in generates authentication metadata locally with AppleAuth. A build 5 IPA includes that provider and keeps its device state in the iOS Keychain. The app has no remote signing or anisette endpoint. [Apple Network Extensions entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension) · [LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044) · [AnisetteKit](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
+The signer uses Apple Personal Team provisioning and an iPhone-approved Remote Pairing record. The App Store build of LocalDevVPN supplies the local tunnel. Embedding a Packet Tunnel Provider requires the `com.apple.developer.networking.networkextension` entitlement with the `packet-tunnel-provider` value. The free-signed signer relies on the companion for that capability. Apple sign-in generates authentication metadata locally with AppleAuth. Build 5 and later include that provider and keeps its device state in the iOS Keychain. The app has no remote signing or anisette endpoint. [Apple Network Extensions entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension) · [LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044) · [AnisetteKit](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
 
 ## Build the unsigned IPAs
 
-Use a Mac with Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The build script checks out pinned local copies of minimuxer and AnisetteKit and verifies the pinned AppleAuth release archive. minimuxer uses relative package paths and AnisetteKit receives the native cleanup patch in [scripts/anisette-cleanup.patch](scripts/anisette-cleanup.patch). Xcode fetches the remaining pinned Swift packages and checksum-pinned frameworks. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
+Use a Mac with Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The build script checks out pinned local copies of minimuxer and AnisetteKit and verifies the pinned AppleAuth release archive. It applies the [installed-app lookup patch](scripts/minimuxer-app-lookup.patch) to minimuxer and the [native cleanup patch](scripts/anisette-cleanup.patch) to AnisetteKit. Xcode fetches the remaining pinned Swift packages and checksum-pinned frameworks. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
 
 ```bash
 bash scripts/build-ipas.sh
@@ -26,6 +26,14 @@ The unsigned signer bundle ID is `dev.kellen.personalsigner.proof`. The USB inst
 Follow [WINDOWS-SETUP.md](WINDOWS-SETUP.md) for first install, pairing and recovery. Complete the device tests in [HANDOFF.md](HANDOFF.md) before use with AetherMedia.
 
 Apple Personal Teams support three active development apps per device and seven-day profiles. The signer and Storage Probe use one slot each. Use the actual Apple profile expiry shown in the app. An install can return the same expiry when Apple reuses a profile. [Apple Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account/)
+
+## Import and refresh your apps
+
+1. Install Personal Signer over USB using the existing signing identity. Sign in and connect LocalDevVPN.
+2. Tap **Import IPA** and choose an unsigned iPhoneOS development IPA in Files. Use a single app bundle without app extensions or nested apps. Bundled frameworks are supported. The compressed archive limit is 256 MB.
+3. Check the displayed name and bundle ID, then tap **Sign and Install**. For apps already installed, Personal Signer checks the application identifier against the Apple-issued profile. If you previously used a custom bundle rename, use an IPA with that exact identifier.
+4. Import a newer IPA with the same source bundle ID to update a managed app. Tap **Refresh** in its row. **Refresh All** uses the latest imported IPAs for confirmed managed apps, then refreshes the signer. Reopen Personal Signer to verify its own refresh.
+5. Use **Enable Expiration Reminders** to schedule local alerts 48 and 24 hours before the recorded profile expiry. Build 6 refreshes apps in the foreground.
 
 ## Source and licenses
 

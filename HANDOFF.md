@@ -92,6 +92,8 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Build 6 app imports
 
+Build 6 compiled with Xcode 27.2 in [run 45061541738](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45061541738) from `72c02be4a7ada86105ed2575df7944181e198c98`. The downloaded unsigned arm64 iPhoneOS IPA passed archive, identity, build-number, and SHA-256 verification. Its SHA-256 is `1fc5fd850ebeca55aa512dd3f5085cd68f5ee1e66699c051c9cfedf6b03ca6cb`. Hardware tests for personal-app imports and installed identity lookup are pending.
+
 Build 6 imports development IPAs with one iPhone app, displays per-app status, and keeps a protected archive and separate install receipt and pending record for each source bundle ID. It reads build 5's Probe receipt and moves its saved archive to the new import directory. The app accepts numeric build numbers with up to three components.
 
 For an app without a receipt, the installer checks its original bundle ID and the common same-team suffix used by the USB tool. An already installed app must expose an application identifier that matches the Apple-issued profile. Apps with receipts reuse their pinned signing identity. The installer leaves existing apps installed and sends the replacement only after validating the profile. An IPA whose existing copy used a different rename needs a build with the exact installed bundle identifier. The minimuxer app lookup patch is applied at build time to its pinned source.

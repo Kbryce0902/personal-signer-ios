@@ -13,10 +13,10 @@ For a USB bootstrap with local authentication metadata, [Sideloadly has a Local 
 
 ## Local Apple sign-in
 
-1. With Wi-Fi connected and LocalDevVPN off, tap **Check Apple Setup**. Personal Signer build 5 includes the local authentication provider, so this step works without importing a ZIP or entering your account.
+1. With Wi-Fi connected and LocalDevVPN off, tap **Check Apple Setup**. Personal Signer build 5 and later include the local authentication provider, so this step works without importing a ZIP or entering your account.
 2. Once the check succeeds, tap **Sign In** and use the same free Apple Account that signed the app over USB. Complete Apple's verification on the phone. The app stores its session, development private key and persistent authentication state in the device-only Keychain.
-3. Import Storage Probe build 1. Unplug the iPhone and turn the PC off before tapping **Install or Refresh Probe**. Keep the phone unlocked on Wi-Fi with LocalDevVPN connected.
-4. If Apple reports its development certificate limit, use **Import My Development Certificate** with your own valid PKCS#12 export for the same Personal Team. Keep any existing certificate active if other apps still depend on it.
+3. Import Storage Probe build 1. Unplug the iPhone and turn the PC off before tapping **Sign and Install** in the Storage Probe row. Keep the phone unlocked on Wi-Fi with LocalDevVPN connected.
+4. After the Probe confirms data survives an in-place update, import an unsigned IPA from your project with **Import IPA**. If Apple reports its development certificate limit, use **Import My Development Certificate** with your own valid PKCS#12 export for the same Personal Team. Keep any existing certificate active if other apps still depend on it.
 
 ## USB recovery after expiration
 
