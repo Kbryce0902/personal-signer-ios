@@ -1,41 +1,26 @@
 import AnisetteKit
+import AppleAuth
 import Foundation
 import SideSign
-import anisette_core
 
 @MainActor
 final class AppleSigning {
-    private struct ADIState: Codable {
-        var identifier = UUID()
-        var blob: Data?
-    }
-
     private struct StoredSession: Codable {
         let auth: AuthSession
         let team: Team
     }
 
-    private let files: ProofFiles
     private let portal = DeveloperPortal()
-    private let adiProvider = LocalADIProvider()
-    private var adiClient: AnisetteClient?
+    private static let deviceStateKey = "apple-local-device-v2"
+    private static let appleSessionKey = "apple-session-local-v2"
 
-    init(files: ProofFiles) {
-        self.files = files
+    init() {
         SideSignLogging.setLogging(false)
         AnisetteKitLogging.setLogging(false)
     }
 
-    var hasLocalADI: Bool {
-        AnisetteClient.validateLibrariesExist(at: files.adiDirectory)
-    }
-
-    func invalidateADIClient() {
-        adiClient = nil
-    }
-
     func isSignedIn(teamID: String) throws -> Bool {
-        guard let bytes = try SignerKeychain.read("apple-session") else { return false }
+        guard let bytes = try SignerKeychain.read(Self.appleSessionKey) else { return false }
         let current = try JSONDecoder().decode(StoredSession.self, from: bytes)
         return current.team.identifier == teamID && current.auth.session.isValid
     }
@@ -71,7 +56,7 @@ final class AppleSigning {
             }
             stage = "Save Apple session"
             let bytes = try JSONEncoder().encode(StoredSession(auth: auth, team: team))
-            try SignerKeychain.write(bytes, account: "apple-session")
+            try SignerKeychain.write(bytes, account: Self.appleSessionKey)
         } catch let issue as ProofIssue {
             throw issue
         } catch {
@@ -81,38 +66,14 @@ final class AppleSigning {
 
     // These errors can include raw responses and request details. Display fixed messages and codes only.
     private static func signInDetail(for error: Error) -> String {
-        if let issue = error as? AnisetteKit.AnisetteError {
-            switch issue {
-            case .httpError(let status, let message):
-                let step: String
-                if message.hasPrefix("Apple lookup endpoint ") {
-                    step = "Looking up Apple authentication services"
-                } else if message.hasPrefix("Apple SPIM endpoint ") {
-                    step = "Starting local provisioning with Apple"
-                } else if message.hasPrefix("Apple PTM/TK endpoint ") {
-                    step = "Finishing local provisioning with Apple"
-                } else {
-                    step = "Local provisioning"
-                }
-                return "\(step) returned HTTP \(status)."
-            case .adiError(let code, let description):
-                if description.hasPrefix("ADIProvisioningStart failed") {
-                    return "Starting local provisioning returned ADI code \(code)."
-                }
-                if description.hasPrefix("ADIProvisioningEnd failed") {
-                    return "Finishing local provisioning returned ADI code \(code)."
-                }
-                if description.hasPrefix("ADIOTPRequest failed") {
-                    return "Generating local authentication data returned ADI code \(code)."
-                }
-                return "The Apple authentication library returned ADI code \(code)."
-            case .loaderFailed, .symbolMissing, .librariesNotFound, .readFailure:
-                return "The Apple authentication libraries could not be loaded. Reimport AppleADI.zip."
-            case .invalidArgument:
-                return "The local Apple authentication library rejected a setup value."
-            case .invalidResponse:
-                return "Apple returned an unexpected response during local authentication setup."
+        if let issue = error as? AppleAuthError {
+            let prefix = "Provisioning HTTP "
+            if issue.message.hasPrefix(prefix),
+               let status = Int(issue.message.dropFirst(prefix.count)),
+               (100...599).contains(status) {
+                return "Apple returned HTTP \(status) during local registration."
             }
+            return "The local Apple authentication provider returned code \(issue.code)."
         }
         if let issue = error as? DeveloperPortalError {
             switch issue {
@@ -240,7 +201,7 @@ final class AppleSigning {
     }
 
     private func signingSession(teamID: String) async throws -> (team: Team, session: Session) {
-        guard let data = try SignerKeychain.read("apple-session") else {
+        guard let data = try SignerKeychain.read(Self.appleSessionKey) else {
             throw ProofIssue.message("Sign in with your Apple Account first.")
         }
         let stored = try JSONDecoder().decode(StoredSession.self, from: data)
@@ -256,48 +217,22 @@ final class AppleSigning {
     }
 
     private func freshAnisette() async throws -> AnisetteData {
-        guard hasLocalADI else {
-            throw ProofIssue.message("Import AppleADI.zip before signing in.")
+        let saved = try SignerKeychain.read(Self.deviceStateKey)
+        let device = try AppleAuth.Device(
+            initialState: saved, platform: .mac,
+            macOSVersion: "26.6", macOSBuild: "25F84",
+            clientInfo: "<MacBookPro18,3> <Mac OS X;26.6;25F84> <com.apple.AuthKit/1 (com.apple.akd/1.0)>"
+        )
+        let headers = try await device.headers()
+        let normalized = AnisetteRequestHeaders(rawHeaders: headers).with {
+            if $0.serialNumber == nil { $0.serialNumber = AnisetteConstants.defaultSerialNumber }
         }
-        let client: AnisetteClient
-        if let adiClient {
-            client = adiClient
-        } else {
-            let libraryDirectory = files.adiDirectory
-            let provisioning = files.root.appendingPathComponent("AppleAuth", isDirectory: true)
-            try ProofFiles.makeDirectory(provisioning)
-            client = try AnisetteClient(
-                provisioningDir: provisioning,
-                provider: adiProvider,
-                libraryDirectoryResolver: { libraryDirectory }
-            )
-            adiClient = client
+        let anisette = try AnisetteDataManager.validateAndCreateAnisetteData(from: normalized)
+        if saved == nil {
+            let state = try await device.serializeState()
+            try SignerKeychain.write(state, account: Self.deviceStateKey)
         }
-        var state = ADIState()
-        if let bytes = try SignerKeychain.read("adi-state") {
-            state = try JSONDecoder().decode(ADIState.self, from: bytes)
-        }
-        let result: (headers: [String: String], newBlob: Data?)
-        do {
-            result = try await client.getAnisetteData(
-                identifier: state.identifier, storage: .memory(existingBlob: state.blob)
-            )
-        } catch {
-            if let code = await adiProvider.cancelPendingProvision(), code != 0 {
-                throw ProofIssue.message(
-                    "Local Apple authentication failed. \(Self.signInDetail(for: error)) Session cleanup returned code \(code). Close Personal Signer from the app switcher before retrying."
-                )
-            }
-            if case AnisetteKit.AnisetteError.adiError(-45063, _) = error {
-                throw ProofIssue.message("Local Apple authentication has a pending provisioning session (ADI -45063). Close Personal Signer from the app switcher, reopen it, and retry.")
-            }
-            throw error
-        }
-        if let blob = result.newBlob {
-            state.blob = blob
-            try SignerKeychain.write(JSONEncoder().encode(state), account: "adi-state")
-        }
-        return try AnisetteDataManager.validateAndCreateAnisetteData(from: result.headers)
+        return anisette
     }
 
     private func currentKey(team: Team, session: Session) async throws -> KeyStore {
@@ -317,46 +252,5 @@ final class AppleSigning {
 
     private func saveKey(_ key: KeyStore) throws {
         try SignerKeychain.write(key.exportP12(), account: "development-key")
-    }
-}
-
-// AnisetteKit starts a native session before contacting Apple to finish provisioning.
-// If that request fails, explicitly release the session before the next attempt.
-private actor LocalADIProvider: AnisetteDataProvider {
-    nonisolated var requiresLocalLibraries: Bool { true }
-
-    private let upstream = UnicornAnisetteDataProvider()
-    private var pending: (libDir: String, provisioningDir: String, identifier: [UInt8], session: UInt32)?
-
-    func getAnisetteHeaders(
-        libDir: String, provisioningDir: String, identifier: [UInt8], adiPb: [UInt8]
-    ) async throws -> AnisetteDataResponse {
-        try upstream.getAnisetteHeaders(libDir: libDir, provisioningDir: provisioningDir, identifier: identifier, adiPb: adiPb)
-    }
-
-    func startProvision(
-        libDir: String, provisioningDir: String, identifier: [UInt8], spim: [UInt8]
-    ) async throws -> (cpim: Data, session: UInt32) {
-        let result = try upstream.startProvision(
-            libDir: libDir, provisioningDir: provisioningDir, identifier: identifier, spim: spim
-        )
-        pending = (libDir, provisioningDir, identifier, result.session)
-        return result
-    }
-
-    func endProvision(
-        libDir: String, provisioningDir: String, identifier: [UInt8], session: UInt32, ptm: [UInt8], tk: [UInt8]
-    ) async throws -> Data {
-        let blob = try upstream.endProvision(
-            libDir: libDir, provisioningDir: provisioningDir, identifier: identifier, session: session, ptm: ptm, tk: tk
-        )
-        pending = nil
-        return blob
-    }
-
-    func cancelPendingProvision() -> Int32? {
-        guard let pending else { return nil }
-        self.pending = nil
-        return cancel_provision_uc(pending.libDir, pending.provisioningDir, pending.identifier, pending.session)
     }
 }

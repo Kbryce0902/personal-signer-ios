@@ -9,7 +9,7 @@ from zipfile import ZipFile
 
 
 EXPECTED = {
-    "PersonalSigner-proof-unsigned.ipa": ("PersonalSigner", "dev.kellen.personalsigner.proof", "4"),
+    "PersonalSigner-proof-unsigned.ipa": ("PersonalSigner", "dev.kellen.personalsigner.proof", "5"),
     "StorageProbe-build-1-unsigned.ipa": ("StorageProbe", "dev.kellen.personalsigner.storageprobe", "1"),
     "StorageProbe-build-2-unsigned.ipa": ("StorageProbe", "dev.kellen.personalsigner.storageprobe", "2"),
 }

@@ -43,3 +43,25 @@ if [[ "$(git -C "$anisette_dir" rev-parse HEAD)" != "$anisette_commit" ]] ||
   printf '%s\n' 'The local AnisetteKit source differs from the pinned checkout with the cleanup patch.' >&2
   exit 1
 fi
+
+apple_auth_version=0.1.3
+apple_auth_checksum=183c9bb77a97f98d2c1369be0ade5a5238170b8598536c050dc52213550b98fd
+apple_auth_dir="$dependencies_dir/AppleAuth"
+apple_auth_archive="$dependencies_dir/AppleAuth-$apple_auth_version.zip"
+
+if [[ ! -d "$apple_auth_dir" ]]; then
+  (
+    incoming="$(mktemp -d "$dependencies_dir/apple-auth.XXXXXX")"
+    trap 'rm -rf -- "$incoming"' EXIT
+    curl --fail --silent --show-error --location --max-time 120 \
+      "https://github.com/apple-auth/apple-auth/releases/download/v$apple_auth_version/AppleAuth.zip" \
+      --output "$incoming/AppleAuth.zip"
+    printf '%s  %s\n' "$apple_auth_checksum" "$incoming/AppleAuth.zip" | shasum -a 256 -c -
+    unzip -q "$incoming/AppleAuth.zip" -d "$incoming"
+    test -f "$incoming/AppleAuth/Package.swift"
+    mv -- "$incoming/AppleAuth.zip" "$apple_auth_archive"
+    mv -- "$incoming/AppleAuth" "$apple_auth_dir"
+  )
+fi
+
+printf '%s  %s\n' "$apple_auth_checksum" "$apple_auth_archive" | shasum -a 256 -c -

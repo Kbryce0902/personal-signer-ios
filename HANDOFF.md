@@ -23,7 +23,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 bash scripts/build-ipas.sh
 ```
 
-Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision and applies and verifies `scripts/anisette-cleanup.patch`. It builds `PersonalSigner` at build 4 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
+Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision, applies and verifies `scripts/anisette-cleanup.patch`, and verifies the AppleAuth v0.1.3 package archive against a pinned SHA-256. It builds `PersonalSigner` at build 5 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
 
 The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2. It signs in to neither Apple nor the test iPhone. Use the provenance recorded below to identify the exact source and runner for a test build.
 
@@ -36,6 +36,14 @@ GitHub Actions [run 45052192852](https://github.com/Kbryce0902/personal-signer-i
 Build 1 failed at on-device sign-in with a generic message. Build 2 reports whether local Apple authentication, Apple Account sign-in, or Personal Team lookup failed. It displays numeric error codes when available and keeps Apple response contents off the screen. On iPhone, build 2 reported `Local Apple authentication failed` with ADI `-45063` before Apple Account sign-in.
 
 GitHub Actions [run 45053651755](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45053651755) built signer build 3 from `be1cba97f5f76b8b4a0947e14335ceee0f02bdb1` with Xcode 27.2. The downloaded IPA passed the arm64 iPhoneOS, unsigned bundle and SHA-256 checks. Signer SHA-256 is `468f0690f602f01818571ccac7aa6f3c9a7aa31262131e3547942080b10f977c`. Install over build 2 using the original iLoader identity and retry sign-in on the iPhone.
+
+Build 4 compiled and passed unsigned IPA verification with Xcode 27.2 in [run 45056325758](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45056325758) from `2531f6ab5435d77892c0a9a208e9dd74ae2a6939`. The signer IPA SHA-256 is `7584852bb7967ef12d9437eb75c35381d5eec4cfe416e79747e47f23c913d6eb`.
+
+## Build 5 provider decision
+
+The account-free comparison in [run 45056913451](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45056913451) reproduced the Android-backed provider's HTTP 401 at Apple registration finish. Patched cancellation returned ADI 0 both before a successful second native start and after the rejected network finish. With AppleAuth v0.1.3 on macOS, the lookup, start and finish all returned HTTP 200 and the provider generated both authentication fields. The alternate test used AppleAuth's Mac ADI mode and the canonical `Mac OS X` client-info spelling. No user account or password was used.
+
+Build 5 uses the checksum-pinned AppleAuth release for local metadata, with the same profile as the successful account-free test. It stores the provider state in the device-only Keychain. It uses a fresh account sign-in keychain entry because the provider identity changed. SideSign still handles account credentials, 2FA, certificates, Apple provisioning and signing. The signing bundle ID, pairing state, development key and update identity rules stay in place. No Apple Music library import is required for build 5. Validate the iOS trust path and AppleAuth-to-SideSign header conversion through **Check Apple Setup** on the phone before credential entry.
 
 ## ADI retry recovery
 
@@ -80,4 +88,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-On the iPhone, use **Check Apple Setup** on build 4 to capture the exact Apple registration stage and verify whether a subsequent retry keeps the original failure. Confirm successful new on-device ADI registration and validate native cleanup with an interrupted provisioning test. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix.
+Install build 5 in place using the existing USB signing identity. On the iPhone, run **Check Apple Setup**, then sign in to the original Personal Team and verify a development profile. Validate the iPhone workflow before expanding the proof. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix.

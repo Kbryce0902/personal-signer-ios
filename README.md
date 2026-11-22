@@ -2,11 +2,11 @@
 
 Native SwiftUI proof project for an iPhone 18 Pro Max on iOS 27.2.1. It implements the candidate on-device sign, install and self-refresh workflow for the supplied Storage Probe app. The arm64 IPAs passed build and archive verification under Xcode 27.2. Pairing, installation and refresh still need a real-device trial. [Verified GitHub Actions build](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45048110063)
 
-The signer uses Apple Personal Team provisioning and an iPhone-approved Remote Pairing record. The App Store build of LocalDevVPN supplies the local tunnel. Embedding a Packet Tunnel Provider requires the `com.apple.developer.networking.networkextension` entitlement with the `packet-tunnel-provider` value. The free-signed signer relies on the companion for that capability. Apple sign-in uses on-device metadata generation and two user-supplied Apple Music ARM64 libraries. The app has no remote signing or anisette endpoint. [Apple Network Extensions entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension) · [LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044) · [AnisetteKit](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
+The signer uses Apple Personal Team provisioning and an iPhone-approved Remote Pairing record. The App Store build of LocalDevVPN supplies the local tunnel. Embedding a Packet Tunnel Provider requires the `com.apple.developer.networking.networkextension` entitlement with the `packet-tunnel-provider` value. The free-signed signer relies on the companion for that capability. Apple sign-in generates authentication metadata locally with AppleAuth. A build 5 IPA includes that provider and keeps its device state in the iOS Keychain. The app has no remote signing or anisette endpoint. [Apple Network Extensions entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension) · [LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608044) · [AnisetteKit](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
 
 ## Build the unsigned IPAs
 
-Use a Mac with Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The build script checks out pinned local copies of minimuxer and AnisetteKit. minimuxer uses relative package paths and AnisetteKit receives the native cleanup patch in [scripts/anisette-cleanup.patch](scripts/anisette-cleanup.patch). Xcode fetches the remaining pinned Swift packages and checksum-pinned frameworks. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
+Use a Mac with Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The build script checks out pinned local copies of minimuxer and AnisetteKit and verifies the pinned AppleAuth release archive. minimuxer uses relative package paths and AnisetteKit receives the native cleanup patch in [scripts/anisette-cleanup.patch](scripts/anisette-cleanup.patch). Xcode fetches the remaining pinned Swift packages and checksum-pinned frameworks. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
 
 ```bash
 bash scripts/build-ipas.sh
@@ -34,9 +34,10 @@ The original project code is available under AGPL-3.0-only. The linked source re
 | Component | Role | Source |
 | --- | --- | --- |
 | SideSign | Apple developer portal, profiles, signing and ZIP handling | [Pinned GPL-3.0 source](https://github.com/SideStore/SideSign/tree/752d1ef602aa792a432ffa1e71646dc1ecf7363c) |
-| AnisetteKit | Local Apple authentication metadata | [Pinned AGPL-3.0 source](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26) |
+| AppleAuth | Local Apple authentication metadata in build 5 | [MIT source at v0.1.3](https://github.com/apple-auth/apple-auth/tree/v0.1.3) |
+| AnisetteKit | SideSign header types and compatibility | [Pinned AGPL-3.0 source](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26) |
 | minimuxer | Trusted pairing and developer installation | [Pinned AGPL-3.0 source](https://github.com/SideStore/minimuxer/tree/12be70dc2627307a16bfd2dc7a009080d5bec909) |
 | iLoader | Separate Windows USB bootstrap and recovery tool | [v2.4.2 MIT source](https://github.com/nab138/iloader/tree/v2.4.2) |
 | LocalDevVPN | Separate App Store-signed local tunnel | [App Store listing](https://apps.apple.com/us/app/localdevvpn/id6755608044) |
 
-Obtain the Apple authentication libraries separately for personal use under Apple's licensing. This project is for development sideloading.
+This project is for development sideloading.

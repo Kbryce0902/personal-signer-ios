@@ -15,6 +15,7 @@
 		B0000000000000000000001F /* SideSign in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000025 /* SideSign */; };
 		B00000000000000000000020 /* Minimuxer in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000026 /* Minimuxer */; };
 		B00000000000000000000021 /* AnisetteKit in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000027 /* AnisetteKit */; };
+		B0000000000000000000004B /* AppleAuth in Frameworks */ = {isa = PBXBuildFile; productRef = B0000000000000000000004C /* AppleAuth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,7 +34,7 @@
 		B00000000000000000000029 /* Signer frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
-			files = (B0000000000000000000001F, B00000000000000000000020, B00000000000000000000021);
+			files = (B0000000000000000000001F, B00000000000000000000020, B00000000000000000000021, B0000000000000000000004B);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B0000000000000000000002A /* Probe frameworks */ = {
@@ -78,7 +79,7 @@
 			buildRules = ();
 			dependencies = ();
 			name = PersonalSigner;
-			packageProductDependencies = (B00000000000000000000025, B00000000000000000000026, B00000000000000000000027);
+			packageProductDependencies = (B00000000000000000000025, B00000000000000000000026, B00000000000000000000027, B0000000000000000000004C);
 			productName = PersonalSigner;
 			productReference = B00000000000000000000012;
 			productType = "com.apple.product-type.application";
@@ -107,7 +108,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (en, Base);
 			mainGroup = B00000000000000000000002;
-			packageReferences = (B00000000000000000000022, B00000000000000000000023, B00000000000000000000024);
+			packageReferences = (B00000000000000000000022, B00000000000000000000023, B00000000000000000000024, B0000000000000000000004A);
 			productRefGroup = B00000000000000000000005;
 			projectDirPath = "";
 			projectRoot = "";
@@ -253,12 +254,14 @@
 /* Begin XCLocalSwiftPackageReference section */
 		B00000000000000000000023 = {isa = XCLocalSwiftPackageReference; relativePath = ".build-dependencies/minimuxer"; };
 		B00000000000000000000024 = {isa = XCLocalSwiftPackageReference; relativePath = ".build-dependencies/AnisetteKit"; };
+		B0000000000000000000004A = {isa = XCLocalSwiftPackageReference; relativePath = ".build-dependencies/AppleAuth"; };
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		B00000000000000000000025 = {isa = XCSwiftPackageProductDependency; package = B00000000000000000000022; productName = SideSign; };
 		B00000000000000000000026 = {isa = XCSwiftPackageProductDependency; package = B00000000000000000000023; productName = Minimuxer; };
 		B00000000000000000000027 = {isa = XCSwiftPackageProductDependency; package = B00000000000000000000024; productName = AnisetteKit; };
+		B0000000000000000000004C = {isa = XCSwiftPackageProductDependency; package = B0000000000000000000004A; productName = AppleAuth; };
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B00000000000000000000001 /* Project object */;

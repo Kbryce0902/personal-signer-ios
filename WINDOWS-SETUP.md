@@ -13,14 +13,8 @@ For a USB bootstrap with local authentication metadata, [Sideloadly has a Local 
 
 ## Local Apple sign-in
 
-1. Obtain an Apple-published Apple Music Android APK with the ARM64 libraries. These PowerShell commands try the Apple-hosted URL referenced by SideServer-for-Linux. If Apple has moved it, pass your Apple-published APK, or its base and ARM64 split APKs, to the script. [Apple Music on Android](https://support.apple.com/en-us/101645) · [Upstream Apple download reference](https://github.com/SideStore/SideServer-for-Linux/blob/main/main.py)
-
-   ```powershell
-   Invoke-WebRequest -UseBasicParsing -Uri "https://apps.mzstatic.com/content/android-apple-music-apk/applemusic.apk" -OutFile ".\applemusic.apk"
-   py -3 .\scripts\prepare-apple-adi.py .\applemusic.apk
-   ```
-
-2. Put `AppleADI.zip` and both Storage Probe IPAs in Files. Import the ADI ZIP and choose **Sign In** with the Apple Account used for USB installation. Complete Apple's verification on the phone. The app stores its session, development private key and persistent authentication state in the device-only Keychain.
+1. With Wi-Fi connected and LocalDevVPN off, tap **Check Apple Setup**. Personal Signer build 5 includes the local authentication provider, so this step works without importing a ZIP or entering your account.
+2. Once the check succeeds, tap **Sign In** and use the same free Apple Account that signed the app over USB. Complete Apple's verification on the phone. The app stores its session, development private key and persistent authentication state in the device-only Keychain.
 3. Import Storage Probe build 1. Unplug the iPhone and turn the PC off before tapping **Install or Refresh Probe**. Keep the phone unlocked on Wi-Fi with LocalDevVPN connected.
 4. If Apple reports its development certificate limit, use **Import My Development Certificate** with your own valid PKCS#12 export for the same Personal Team. Keep any existing certificate active if other apps still depend on it.
 

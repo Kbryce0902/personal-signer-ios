@@ -68,15 +68,10 @@ private struct SignerView: View {
                 .disabled(disabled)
 
                 Section("Apple Account") {
-                    Button(proof.adiImported ? "Replace AppleADI.zip" : "Import AppleADI.zip") {
-                        importFile(.authentication)
-                    }
                     Button("Check Apple Setup") {
                         Task { await proof.checkAppleSetup() }
                     }
-                    .disabled(!proof.adiImported)
                     Button(proof.signedIn ? "Sign In Again" : "Sign In") { showAccount = true }
-                        .disabled(!proof.adiImported)
                     if proof.signedIn {
                         SecureField("Certificate password, if needed", text: $certificatePassword)
                         Button("Import My Development Certificate") { importFile(.certificate) }

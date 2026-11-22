@@ -73,7 +73,6 @@ struct ProofState: Codable {
 struct ProofFiles {
     static let profileName = "embedded.mobileprovision"
     static let stampName = "PersonalSignerInstallStamp.txt"
-    static let adiNames = ["libCoreADI.so", "libstoreservicescore.so"]
     static let maxIPABytes = 64 * 1024 * 1024
 
     let root: URL
@@ -94,7 +93,6 @@ struct ProofFiles {
     var stateURL: URL { root.appendingPathComponent("state.json") }
     var pairingURL: URL { root.appendingPathComponent("pairing.plist") }
     var ipaURL: URL { root.appendingPathComponent("StorageProbe.ipa") }
-    var adiDirectory: URL { root.appendingPathComponent("AppleADI", isDirectory: true) }
 
     func readState() throws -> ProofState {
         guard FileManager.default.fileExists(atPath: stateURL.path) else {
@@ -237,45 +235,6 @@ struct ProofFiles {
             throw ProofIssue.message("The IPA is missing the app's Info.plist.")
         }
         return metadata
-    }
-
-    func importADI(from url: URL) throws {
-        let stage = try newStagingDirectory()
-        defer { try? FileManager.default.removeItem(at: stage) }
-        let archive = stage.appendingPathComponent("AppleADI.zip")
-        try Self.write(Self.readImport(url, maxBytes: 32 * 1024 * 1024), to: archive)
-        let reader = try SideSign.Archive.Reader.open(at: archive)
-        let entries = try reader.entries()
-        let actualNames = try entries.map { try Self.safeName($0) }
-        guard actualNames.sorted() == Self.adiNames.sorted() else {
-            throw ProofIssue.message("Choose AppleADI.zip created by the setup script.")
-        }
-
-        let payload = stage.appendingPathComponent("ValidatedADI", isDirectory: true)
-        try Self.makeDirectory(payload)
-        try reader.goToFirstFile()
-        repeat {
-            let entry = try reader.currentEntry()
-            guard !entry.isDirectory, entry.uncompressedSize >= 64,
-                  entry.uncompressedSize <= 16 * 1024 * 1024 else {
-                throw ProofIssue.message("An Apple authentication library has an invalid size.")
-            }
-            let content = try reader.readCurrentFile()
-            let header = Array(content.prefix(20))
-            guard header.count == 20,
-                  Array(header.prefix(6)) == [127, 69, 76, 70, 2, 1],
-                  Array(header[16..<20]) == [3, 0, 183, 0] else {
-                throw ProofIssue.message("The authentication libraries must be Apple Music's ARM64 ELF files.")
-            }
-            try Self.write(content, to: payload.appendingPathComponent(entry.filename))
-        } while reader.goToNextFile()
-
-        let fm = FileManager.default
-        if fm.fileExists(atPath: adiDirectory.path) {
-            _ = try fm.replaceItemAt(adiDirectory, withItemAt: payload)
-        } else {
-            try fm.moveItem(at: payload, to: adiDirectory)
-        }
     }
 
     private static func safeName(_ entry: SideSign.Archive.Entry) throws -> String {

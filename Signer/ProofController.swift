@@ -4,7 +4,7 @@ import SideSign
 import SwiftUI
 
 enum SetupFile: String, Identifiable {
-    case pairing, authentication, probe, certificate
+    case pairing, probe, certificate
 
     var id: String { rawValue }
 }
@@ -15,7 +15,6 @@ final class ProofController: ObservableObject {
     @Published private(set) var busy = false
     @Published private(set) var status = "Open this build on the iPhone with its USB-installed development profile."
     @Published private(set) var pairingImported = false
-    @Published private(set) var adiImported = false
     @Published private(set) var signedIn = false
     @Published private(set) var selection: ProbeBuild?
     @Published private(set) var state = ProofState()
@@ -36,14 +35,13 @@ final class ProofController: ObservableObject {
         guard runtime == nil else { return }
         do {
             let files = try ProofFiles()
-            let apple = AppleSigning(files: files)
+            let apple = AppleSigning()
             let device = PairedDevice(files: files)
             let profile = try Self.runningProfile()
             let identity = try AppIdentity(profile: profile)
             let saved = try files.readState()
             ownExpiration = profile.expirationDate
             pairingImported = device.hasPairing
-            adiImported = apple.hasLocalADI
             signedIn = try apple.isSignedIn(teamID: identity.teamID)
             if FileManager.default.fileExists(atPath: files.ipaURL.path) {
                 selection = try? files.inspectProbe(at: files.ipaURL)
@@ -65,11 +63,6 @@ final class ProofController: ObservableObject {
                 try runtime.device.importPairing(from: url)
                 pairingImported = true
                 status = "Pairing record imported. Run Check Connection to verify it."
-            case .authentication:
-                try runtime.files.importADI(from: url)
-                runtime.apple.invalidateADIClient()
-                adiImported = runtime.apple.hasLocalADI
-                status = "Local Apple authentication files imported."
             case .probe:
                 selection = try runtime.files.importProbe(from: url)
                 status = "Storage Probe is ready to sign."
@@ -213,10 +206,10 @@ final class ProofController: ObservableObject {
         guard let pending = state.pending else {
             if state.probe != nil {
                 status = "Ready. The last confirmed Storage Probe install is shown below."
-            } else if pairingImported && adiImported && signedIn {
+            } else if pairingImported && signedIn {
                 status = "Ready to check the paired connection and install Storage Probe."
             } else {
-                status = "Import the pairing and local Apple authentication files to begin."
+                status = "Import the pairing record and check Apple setup to begin."
             }
             return
         }
