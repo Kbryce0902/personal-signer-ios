@@ -1,0 +1,32 @@
+name: Diagnose local Apple provisioning
+on:
+  push:
+    branches: [diagnostics/adi-provisioning]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build and exercise the local provider without an Apple Account
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d)"
+          trap 'rm -rf -- "$scratch"' EXIT
+          bash scripts/fetch-build-dependencies.sh
+          python3 -m venv "$scratch/venv"
+          "$scratch/venv/bin/pip" install --quiet --disable-pip-version-check unicorn==2.1.4
+          unicorn="$("$scratch/venv/bin/python" -c 'from pathlib import Path; import unicorn; print(Path(unicorn.__file__).parent)')"
+          curl --fail --silent --show-error --max-time 70 https://apps.mzstatic.com/content/android-apple-music-apk/applemusic.apk -o "$scratch/AppleMusic.apk"
+          for lib in libCoreADI.so libstoreservicescore.so; do
+            unzip -p "$scratch/AppleMusic.apk" "lib/arm64-v8a/$lib" > "$scratch/$lib"
+          done
+          native=".build-dependencies/AnisetteKit/Native"
+          g++ -std=c++17 -O2 -fPIC -shared -pthread -I"$unicorn/include" -I"$native/include" -I"$native" \
+            "$native/anisette_base.cpp" "$native/Loader/elf_loader_emulator.cpp" "$native/anisette_core_uc.cpp" \
+            "$unicorn/lib/libunicorn.a" -o "$scratch/libanisette-test.so"
+          "$scratch/venv/bin/python" scripts/diagnose-apple-registration.py "$scratch"
