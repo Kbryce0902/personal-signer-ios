@@ -44,7 +44,7 @@ build_ipa() {
   )
 }
 
-build_ipa PersonalSigner 2 PersonalSigner-proof-unsigned.ipa
+build_ipa PersonalSigner 3 PersonalSigner-proof-unsigned.ipa
 build_ipa StorageProbe 1 StorageProbe-build-1-unsigned.ipa
 build_ipa StorageProbe 2 StorageProbe-build-2-unsigned.ipa
 

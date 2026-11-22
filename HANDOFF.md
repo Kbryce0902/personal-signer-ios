@@ -23,7 +23,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 bash scripts/build-ipas.sh
 ```
 
-Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches the pinned minimuxer checkout as a local Swift package so its relative dependency paths resolve. It builds `PersonalSigner` at build 2 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
+Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches the pinned minimuxer checkout as a local Swift package so its relative dependency paths resolve. It builds `PersonalSigner` at build 3 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
 
 The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2. It signs in to neither Apple nor the test iPhone. Use the provenance recorded below to identify the exact source and runner for a test build.
 
@@ -33,7 +33,13 @@ GitHub Actions [run 45048110063](https://github.com/Kbryce0902/personal-signer-i
 
 GitHub Actions [run 45052192852](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45052192852) built and verified signer build 2 on source commit `007f781191b86feb906686d90b8241a956dbde30`. Its IPA SHA-256 is `d2ad8d21d630f1ccf9eb55aece24b06c61626ec782a36569e14a8a38134d12ff`. Install it over build 1 using the original iLoader account and bundle ID settings. Retry Apple sign-in and capture the displayed stage and code.
 
-Build 1 failed at on-device sign-in with a generic message. Build 2 reports whether local Apple authentication, Apple Account sign-in, or Personal Team lookup failed. It displays numeric error codes when available and keeps Apple response contents off the screen. The exact failure and the sign-in result remain to be verified on the iPhone.
+Build 1 failed at on-device sign-in with a generic message. Build 2 reports whether local Apple authentication, Apple Account sign-in, or Personal Team lookup failed. It displays numeric error codes when available and keeps Apple response contents off the screen. On iPhone, build 2 reported `Local Apple authentication failed` with ADI `-45063` before Apple Account sign-in.
+
+## ADI retry recovery
+
+`-45063` is the pending local ADI session code. In the pinned AnisetteKit source, the Unicorn provider keeps its VM alive for the process and starts a native session before the request to Apple that finishes provisioning. The high-level client does not cancel that session if the next step fails. [ADI error mapping](https://github.com/Dadoum/Provision/blob/main/lib/provision/adi.d) · [Pinned AnisetteKit source](https://github.com/mahee96/AnisetteKit/tree/db8b41022697b6c19be8a5f01a1ce834145a2a26)
+
+Build 3 wraps the upstream provider and calls its native cancel function on a failed attempt with a tracked session. It displays fixed messages for start, finish and local authentication-data generation failures. An untracked pending session requires a fresh process. Fully close Personal Signer from the iOS app switcher, reopen it and try sign-in once. Keep existing pairing, bundle identity and Keychain entries. Keep LocalDevVPN off during this sign-in check. The first error on a fresh process is the evidence needed if sign-in still fails.
 
 ## Workspace checks
 
@@ -55,7 +61,7 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 | --- | --- | --- |
 | USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch |
 | Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | User reported trusted connection |
-| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Build 1 failed during sign-in. Diagnosis pending on build 2 |
+| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Build 2 reported ADI `-45063`. Awaiting a build 3 retry |
 | First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | Pending |
 | Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
 | In-place upgrade | Import and install build 2 with build 1 still present. Confirm build 2, a new install stamp and the original saved value. | Pending |

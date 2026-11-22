@@ -1,6 +1,7 @@
 import AnisetteKit
 import Foundation
 import SideSign
+import anisette_core
 
 @MainActor
 final class AppleSigning {
@@ -16,6 +17,7 @@ final class AppleSigning {
 
     private let files: ProofFiles
     private let portal = DeveloperPortal()
+    private let adiProvider = LocalADIProvider()
     private var adiClient: AnisetteClient?
 
     init(files: ProofFiles) {
@@ -73,7 +75,16 @@ final class AppleSigning {
             switch issue {
             case .httpError(let status, _):
                 return httpDetail(status)
-            case .adiError(let code, _):
+            case .adiError(let code, let description):
+                if description.hasPrefix("ADIProvisioningStart failed") {
+                    return "Starting local provisioning returned ADI code \(code)."
+                }
+                if description.hasPrefix("ADIProvisioningEnd failed") {
+                    return "Finishing local provisioning returned ADI code \(code)."
+                }
+                if description.hasPrefix("ADIOTPRequest failed") {
+                    return "Generating local authentication data returned ADI code \(code)."
+                }
                 return "The Apple authentication library returned ADI code \(code)."
             case .loaderFailed, .symbolMissing, .librariesNotFound, .readFailure:
                 return "The Apple authentication libraries could not be loaded. Reimport AppleADI.zip."
@@ -237,6 +248,7 @@ final class AppleSigning {
             try ProofFiles.makeDirectory(provisioning)
             client = try AnisetteClient(
                 provisioningDir: provisioning,
+                provider: adiProvider,
                 libraryDirectoryResolver: { libraryDirectory }
             )
             adiClient = client
@@ -245,9 +257,18 @@ final class AppleSigning {
         if let bytes = try SignerKeychain.read("adi-state") {
             state = try JSONDecoder().decode(ADIState.self, from: bytes)
         }
-        let result = try await client.getAnisetteData(
-            identifier: state.identifier, storage: .memory(existingBlob: state.blob)
-        )
+        let result: (headers: [String: String], newBlob: Data?)
+        do {
+            result = try await client.getAnisetteData(
+                identifier: state.identifier, storage: .memory(existingBlob: state.blob)
+            )
+        } catch {
+            await adiProvider.cancelPendingProvision()
+            if case AnisetteKit.AnisetteError.adiError(-45063, _) = error {
+                throw ProofIssue.message("Local Apple authentication has a pending provisioning session (ADI -45063). Close Personal Signer from the app switcher, reopen it, and retry.")
+            }
+            throw error
+        }
         if let blob = result.newBlob {
             state.blob = blob
             try SignerKeychain.write(JSONEncoder().encode(state), account: "adi-state")
@@ -272,5 +293,46 @@ final class AppleSigning {
 
     private func saveKey(_ key: KeyStore) throws {
         try SignerKeychain.write(key.exportP12(), account: "development-key")
+    }
+}
+
+// AnisetteKit starts a native session before contacting Apple to finish provisioning.
+// If that request fails, explicitly release the session before the next attempt.
+private actor LocalADIProvider: AnisetteDataProvider {
+    nonisolated var requiresLocalLibraries: Bool { true }
+
+    private let upstream = UnicornAnisetteDataProvider()
+    private var pending: (libDir: String, provisioningDir: String, identifier: [UInt8], session: UInt32)?
+
+    func getAnisetteHeaders(
+        libDir: String, provisioningDir: String, identifier: [UInt8], adiPb: [UInt8]
+    ) async throws -> AnisetteDataResponse {
+        try upstream.getAnisetteHeaders(libDir: libDir, provisioningDir: provisioningDir, identifier: identifier, adiPb: adiPb)
+    }
+
+    func startProvision(
+        libDir: String, provisioningDir: String, identifier: [UInt8], spim: [UInt8]
+    ) async throws -> (cpim: Data, session: UInt32) {
+        let result = try upstream.startProvision(
+            libDir: libDir, provisioningDir: provisioningDir, identifier: identifier, spim: spim
+        )
+        pending = (libDir, provisioningDir, identifier, result.session)
+        return result
+    }
+
+    func endProvision(
+        libDir: String, provisioningDir: String, identifier: [UInt8], session: UInt32, ptm: [UInt8], tk: [UInt8]
+    ) async throws -> Data {
+        let blob = try upstream.endProvision(
+            libDir: libDir, provisioningDir: provisioningDir, identifier: identifier, session: session, ptm: ptm, tk: tk
+        )
+        pending = nil
+        return blob
+    }
+
+    func cancelPendingProvision() {
+        guard let pending else { return }
+        _ = cancel_provision_uc(pending.libDir, pending.provisioningDir, pending.identifier, pending.session)
+        self.pending = nil
     }
 }
