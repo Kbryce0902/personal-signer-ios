@@ -59,9 +59,14 @@ if [[ ! -d "$apple_auth_dir" ]]; then
     printf '%s  %s\n' "$apple_auth_checksum" "$incoming/AppleAuth.zip" | shasum -a 256 -c -
     unzip -q "$incoming/AppleAuth.zip" -d "$incoming"
     test -f "$incoming/AppleAuth/Package.swift"
+    python3 "$repo_dir/scripts/prepare-apple-auth-framework.py" \
+      "$incoming/AppleAuth/Artifacts/apple_auth.xcframework"
     mv -- "$incoming/AppleAuth.zip" "$apple_auth_archive"
     mv -- "$incoming/AppleAuth" "$apple_auth_dir"
   )
 fi
 
 printf '%s  %s\n' "$apple_auth_checksum" "$apple_auth_archive" | shasum -a 256 -c -
+if [[ ! -d "$apple_auth_dir/Artifacts/apple_auth.xcframework/ios-arm64/apple_auth.framework" ]]; then
+  python3 "$repo_dir/scripts/prepare-apple-auth-framework.py" "$apple_auth_dir/Artifacts/apple_auth.xcframework"
+fi
