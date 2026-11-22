@@ -1,0 +1,57 @@
+diff --git a/Native/anisette_base.h b/Native/anisette_base.h
+index e1042ed..48f67b3 100644
+--- a/Native/anisette_base.h
++++ b/Native/anisette_base.h
+@@ -191,7 +191,8 @@ struct ADISymbols {
+     const char* otp_request           = "qi864985u0";
+     const char* provisioning_start    = "rsegvyrt87";
+     const char* provisioning_end      = "uv5t6nhkui";
+-    const char* destroy_session       = "n388H58b";
++    const char* destroy_session       = "fy34trz2st";
++    const char* legacy_destroy_session = "n388H58b";
+     const char* dispose               = "p435345l3";
+ 
+     const char* lib_ssc               = "libstoreservicescore.so";
+diff --git a/Native/anisette_core_mac.cpp b/Native/anisette_core_mac.cpp
+index 16224cb..72cd9c0 100644
+--- a/Native/anisette_core_mac.cpp
++++ b/Native/anisette_core_mac.cpp
+@@ -317,6 +317,9 @@ int32_t cancel_provision_c(
+     ElfLoader* ssc = !adi->siblings.empty() ? adi->siblings[0] : nullptr;
+ 
+     ADIProvisioningDestroy destroy = (ADIProvisioningDestroy)get_adi_symbol(ssc, adi, kADISymbols.destroy_session, "ADIProvisioningDestroy");
++    if (!destroy) {
++        destroy = (ADIProvisioningDestroy)get_adi_symbol(ssc, adi, kADISymbols.legacy_destroy_session, "ADIProvisioningDestroy");
++    }
+     if (!destroy) {
+         return ANISETTE_ERR_SYMBOL_MISSING;
+     }
+diff --git a/Native/anisette_core_uc.cpp b/Native/anisette_core_uc.cpp
+index 114a3c9..54620c9 100644
+--- a/Native/anisette_core_uc.cpp
++++ b/Native/anisette_core_uc.cpp
+@@ -399,14 +399,18 @@ int32_t cancel_provision_uc(
+ 
+     std::lock_guard<std::mutex> lock(g_vm_mutex);
+ 
+-    if (g_shared_vm) {
+-        uint64_t destroy_session_ptr = get_vm_symbol_address(g_shared_vm, kADISymbols.destroy_session);
+-        if (destroy_session_ptr) {
+-            run_vm_procedure(g_shared_vm, destroy_session_ptr, {session});
+-        }
++    if (!g_shared_vm || !g_libraries_initialized) {
++        return ANISETTE_ERR_LOADER_FAILED;
+     }
+ 
+-    return ANISETTE_OK;
++    uint64_t destroy_session_ptr = get_vm_symbol_address(g_shared_vm, kADISymbols.destroy_session);
++    if (!destroy_session_ptr) {
++        destroy_session_ptr = get_vm_symbol_address(g_shared_vm, kADISymbols.legacy_destroy_session);
++    }
++    if (!destroy_session_ptr) {
++        return ANISETTE_ERR_SYMBOL_MISSING;
++    }
++    return run_vm_procedure(g_shared_vm, destroy_session_ptr, {session});
+ }
+ 
+ }

@@ -6,7 +6,7 @@ The signer uses Apple Personal Team provisioning and an iPhone-approved Remote P
 
 ## Build the unsigned IPAs
 
-Use a Mac with Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The build script checks out minimuxer at its pinned revision as a local package because its manifest uses relative package paths. Xcode fetches the remaining pinned Swift packages and checksum-pinned frameworks. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
+Use a Mac with Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The build script checks out pinned local copies of minimuxer and AnisetteKit. minimuxer uses relative package paths and AnisetteKit receives the native cleanup patch in [scripts/anisette-cleanup.patch](scripts/anisette-cleanup.patch). Xcode fetches the remaining pinned Swift packages and checksum-pinned frameworks. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
 
 ```bash
 bash scripts/build-ipas.sh
@@ -29,7 +29,7 @@ Apple Personal Teams support three active development apps per device and seven-
 
 ## Source and licenses
 
-The original project code is available under AGPL-3.0-only. The linked source revisions are in `Package.resolved`. If distributing binaries, include complete corresponding source, build inputs and notices for the linked software. Consult the pinned license texts and framework build recipes.
+The original project code is available under AGPL-3.0-only. The linked source revisions are in `Package.resolved` and `scripts/fetch-build-dependencies.sh`. If distributing binaries, include complete corresponding source, build inputs and notices for the linked software. Consult the pinned license texts and framework build recipes.
 
 | Component | Role | Source |
 | --- | --- | --- |

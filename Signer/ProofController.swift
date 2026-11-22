@@ -82,6 +82,13 @@ final class ProofController: ObservableObject {
         }
     }
 
+    func checkAppleSetup() async {
+        await run("Checking local Apple authentication…", fallback: "The local Apple authentication check failed.") { runtime in
+            try await runtime.apple.checkLocalAuthentication()
+            status = "Local Apple authentication is ready. Sign in with your Apple Account."
+        }
+    }
+
     func signIn(appleID: String, password: String) async {
         await run("Signing in with Apple…", fallback: "Apple sign-in failed. Verify the account and network, then retry.") { runtime in
             let identity = try AppIdentity(profile: Self.runningProfile())

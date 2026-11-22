@@ -23,7 +23,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 bash scripts/build-ipas.sh
 ```
 
-Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches the pinned minimuxer checkout as a local Swift package so its relative dependency paths resolve. It builds `PersonalSigner` at build 3 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
+Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision and applies and verifies `scripts/anisette-cleanup.patch`. It builds `PersonalSigner` at build 4 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
 
 The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2. It signs in to neither Apple nor the test iPhone. Use the provenance recorded below to identify the exact source and runner for a test build.
 
@@ -45,7 +45,7 @@ Build 3 installed and launched on the target iPhone. The first captured sign-in 
 
 Build 3 called the native cancel function, but the pinned Unicorn implementation resolves `n388H58b` and returns success even when the symbol is absent or the call fails. `readelf --dyn-syms --wide` on both ARM64 libraries from Apple's current Android download showed neither exports `n388H58b`. `libstoreservicescore.so` exports `fy34trz2st`, the destroy routine used in [Dadoum/Provision](https://github.com/Dadoum/Provision/blob/main/lib/provision/adi.d). The examined `libstoreservicescore.so` SHA-256 is `bd335e6963ba5ae2f5babca613435ad56d2660a9aee37df35f876c458d105ce4`. A cleanup fix should use the verified routine and preserve its result. It will need a separate test for the original 401.
 
-The existing sign-in dependency is Apple's acceptance of the on-device ADI registration. The public Personal Team workflow documented by Apple uses Xcode. A Linux diagnostic compiled the same Unicorn loader and stopped on HTTP 503 at Apple lookup without an account, so it could not independently reproduce the iPhone's finish-stage inference. No new IPA was issued for these errors. The installed build can stay in place. A fresh process clears the in-memory session. It supplies no fix for the upstream HTTP rejection. [Apple Personal Team documentation](https://developer.apple.com/help/account/basics/about-your-developer-account/)
+The existing sign-in dependency is Apple's acceptance of the on-device ADI registration. The public Personal Team workflow documented by Apple uses Xcode. A Linux diagnostic compiled the same Unicorn loader and stopped on HTTP 503 at Apple lookup without an account, so it could not independently reproduce the iPhone's finish-stage inference. Build 4 uses the verified destroy routine with a fallback for libraries exposing the original symbol. It reports the native result and preserves the initial error if cleanup fails. **Check Apple Setup** runs machine registration without an Apple Account or password and reports a fixed lookup, start or finish stage alongside the HTTP status. Successful registration is required before Apple Account sign-in can proceed. [Apple Personal Team documentation](https://developer.apple.com/help/account/basics/about-your-developer-account/)
 
 ## Workspace checks
 
@@ -55,6 +55,7 @@ The existing sign-in dependency is Apple's acceptance of the on-device ADI regis
 | ADI preparation with single and split synthetic APKs, missing and invalid files, conflicting libraries, and existing output | Passed |
 | Bash script syntax and build environment preflight | Passed. Running the script stopped at the macOS/Xcode prerequisite with exit code 2 |
 | Windows PowerShell preflight | Source reviewed. Remote Windows call timed out, and PowerShell is unavailable in the workspace |
+| ADI cleanup regression | With current Apple ARM64 libraries and Unicorn 2.1.4 on Linux, original cancel falsely returned zero for a missing VM and an unknown session. Patched cancel returned loader failure for the missing VM and native ADI errors for empty and unknown sessions. Successful cancellation of an active session on iPhone still needs verification. |
 | IPA verification | Passed synthetic arm64 device, simulator, embedded-profile and wrong-identity fixtures |
 | Swift compilation and IPA packaging | Passed on Xcode 27.2 for the signer and both Storage Probe builds |
 | Downloaded IPA verification | All three SHA-256 digests matched. Executables target arm64 iPhoneOS and the bundles contain no provisioning profiles |
@@ -79,4 +80,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Verify successful new on-device ADI registration with a compatible provider or upstream update before issuing a sign-in fix. In the next diagnostic build, preserve a fixed lookup, start or finish label alongside the HTTP status and validate native cleanup with an interrupted provisioning test. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix.
+On the iPhone, use **Check Apple Setup** on build 4 to capture the exact Apple registration stage and verify whether a subsequent retry keeps the original failure. Confirm successful new on-device ADI registration and validate native cleanup with an interrupted provisioning test. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix.

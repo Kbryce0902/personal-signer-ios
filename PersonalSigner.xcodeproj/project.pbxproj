@@ -248,11 +248,11 @@
 
 /* Begin XCRemoteSwiftPackageReference section */
 		B00000000000000000000022 = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/SideStore/SideSign.git"; requirement = {kind = revision; revision = 752d1ef602aa792a432ffa1e71646dc1ecf7363c; }; };
-		B00000000000000000000024 = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/mahee96/AnisetteKit.git"; requirement = {kind = branch; branch = main; }; };
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCLocalSwiftPackageReference section */
 		B00000000000000000000023 = {isa = XCLocalSwiftPackageReference; relativePath = ".build-dependencies/minimuxer"; };
+		B00000000000000000000024 = {isa = XCLocalSwiftPackageReference; relativePath = ".build-dependencies/AnisetteKit"; };
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */

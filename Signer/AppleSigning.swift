@@ -40,6 +40,16 @@ final class AppleSigning {
         return current.team.identifier == teamID && current.auth.session.isValid
     }
 
+    func checkLocalAuthentication() async throws {
+        do {
+            _ = try await freshAnisette()
+        } catch let issue as ProofIssue {
+            throw issue
+        } catch {
+            throw ProofIssue.message("Local Apple authentication failed. \(Self.signInDetail(for: error))")
+        }
+    }
+
     func signIn(
         appleID: String, password: String, teamID: String,
         verification: @escaping DeveloperPortal.VerificationHandler
@@ -73,8 +83,18 @@ final class AppleSigning {
     private static func signInDetail(for error: Error) -> String {
         if let issue = error as? AnisetteKit.AnisetteError {
             switch issue {
-            case .httpError(let status, _):
-                return httpDetail(status)
+            case .httpError(let status, let message):
+                let step: String
+                if message.hasPrefix("Apple lookup endpoint ") {
+                    step = "Looking up Apple authentication services"
+                } else if message.hasPrefix("Apple SPIM endpoint ") {
+                    step = "Starting local provisioning with Apple"
+                } else if message.hasPrefix("Apple PTM/TK endpoint ") {
+                    step = "Finishing local provisioning with Apple"
+                } else {
+                    step = "Local provisioning"
+                }
+                return "\(step) returned HTTP \(status)."
             case .adiError(let code, let description):
                 if description.hasPrefix("ADIProvisioningStart failed") {
                     return "Starting local provisioning returned ADI code \(code)."
@@ -263,7 +283,11 @@ final class AppleSigning {
                 identifier: state.identifier, storage: .memory(existingBlob: state.blob)
             )
         } catch {
-            await adiProvider.cancelPendingProvision()
+            if let code = await adiProvider.cancelPendingProvision(), code != 0 {
+                throw ProofIssue.message(
+                    "Local Apple authentication failed. \(Self.signInDetail(for: error)) Session cleanup returned code \(code). Close Personal Signer from the app switcher before retrying."
+                )
+            }
             if case AnisetteKit.AnisetteError.adiError(-45063, _) = error {
                 throw ProofIssue.message("Local Apple authentication has a pending provisioning session (ADI -45063). Close Personal Signer from the app switcher, reopen it, and retry.")
             }
@@ -330,9 +354,9 @@ private actor LocalADIProvider: AnisetteDataProvider {
         return blob
     }
 
-    func cancelPendingProvision() {
-        guard let pending else { return }
-        _ = cancel_provision_uc(pending.libDir, pending.provisioningDir, pending.identifier, pending.session)
+    func cancelPendingProvision() -> Int32? {
+        guard let pending else { return nil }
         self.pending = nil
+        return cancel_provision_uc(pending.libDir, pending.provisioningDir, pending.identifier, pending.session)
     }
 }
