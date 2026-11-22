@@ -31,6 +31,8 @@ The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2.
 
 GitHub Actions [run 45048110063](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45048110063) succeeded using Xcode 27.2 build `27B52` on source commit `95f1e8f5be00c62a380123a47cc1e1564c53bca8`. The job's `PersonalSigner-unsigned-ipas` artifact contains the signer IPA, both Storage Probe IPAs and `SHA256SUMS`. The archive digest matched on download. The three IPAs also passed the local arm64 iPhoneOS, unsigned bundle metadata and SHA-256 checks.
 
+GitHub Actions [run 45052192852](https://github.com/Kbryce0902/personal-signer-ios/actions/runs/45052192852) built and verified signer build 2 on source commit `007f781191b86feb906686d90b8241a956dbde30`. Its IPA SHA-256 is `d2ad8d21d630f1ccf9eb55aece24b06c61626ec782a36569e14a8a38134d12ff`. Install it over build 1 using the original iLoader account and bundle ID settings. Retry Apple sign-in and capture the displayed stage and code.
+
 Build 1 failed at on-device sign-in with a generic message. Build 2 reports whether local Apple authentication, Apple Account sign-in, or Personal Team lookup failed. It displays numeric error codes when available and keeps Apple response contents off the screen. The exact failure and the sign-in result remain to be verified on the iPhone.
 
 ## Workspace checks
