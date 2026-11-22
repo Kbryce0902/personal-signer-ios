@@ -42,19 +42,101 @@ final class AppleSigning {
         appleID: String, password: String, teamID: String,
         verification: @escaping DeveloperPortal.VerificationHandler
     ) async throws {
-        let anisette = try await freshAnisette()
-        let auth = try await portal.authenticate(
-            appleID: appleID, password: password,
-            anisetteData: anisette, xcodeVersion: "27.2",
-            machinePassword: nil, accountRepairHandler: { _, _ in .cancel },
-            verificationHandler: verification
-        )
-        let teams = try await portal.fetchTeams(for: auth.account, session: auth.session)
-        guard let team = teams.first(where: { $0.identifier == teamID && $0.type == .free }) else {
-            throw ProofIssue.message("Sign in with the free Apple Account that installed this signer over USB. The signing team doesn't match.")
+        var stage = "Local Apple authentication"
+        do {
+            let anisette = try await freshAnisette()
+            stage = "Apple Account sign-in"
+            let auth = try await portal.authenticate(
+                appleID: appleID, password: password,
+                anisetteData: anisette, xcodeVersion: "27.2",
+                machinePassword: nil, accountRepairHandler: { _, _ in .cancel },
+                verificationHandler: verification
+            )
+            stage = "Apple Personal Team lookup"
+            let teams = try await portal.fetchTeams(for: auth.account, session: auth.session)
+            guard let team = teams.first(where: { $0.identifier == teamID && $0.type == .free }) else {
+                throw ProofIssue.message("Sign in with the free Apple Account that installed this signer over USB. The signing team doesn't match.")
+            }
+            stage = "Save Apple session"
+            let bytes = try JSONEncoder().encode(StoredSession(auth: auth, team: team))
+            try SignerKeychain.write(bytes, account: "apple-session")
+        } catch let issue as ProofIssue {
+            throw issue
+        } catch {
+            throw ProofIssue.message("\(stage) failed. \(Self.signInDetail(for: error))")
         }
-        let bytes = try JSONEncoder().encode(StoredSession(auth: auth, team: team))
-        try SignerKeychain.write(bytes, account: "apple-session")
+    }
+
+    // These errors can include raw responses and request details. Display fixed messages and codes only.
+    private static func signInDetail(for error: Error) -> String {
+        if let issue = error as? AnisetteKit.AnisetteError {
+            switch issue {
+            case .httpError(let status, _):
+                return httpDetail(status)
+            case .adiError(let code, _):
+                return "The Apple authentication library returned ADI code \(code)."
+            case .loaderFailed, .symbolMissing, .librariesNotFound, .readFailure:
+                return "The Apple authentication libraries could not be loaded. Reimport AppleADI.zip."
+            case .invalidArgument:
+                return "The local Apple authentication library rejected a setup value."
+            case .invalidResponse:
+                return "Apple returned an unexpected response during local authentication setup."
+            }
+        }
+        if let issue = error as? DeveloperPortalError {
+            switch issue {
+            case .incorrectCredentials:
+                return "Apple rejected the credentials for this account."
+            case .appSpecificPasswordRequired:
+                return "Apple requested an app-specific password."
+            case .requiresTwoFactorAuthentication, .incorrectVerificationCode, .invalid2FAResponse:
+                return "Apple verification did not complete. Request a new code and check the selected verification method."
+            case .accountRepairRequired:
+                return "Apple requires you to complete an account action at account.apple.com."
+            case .noTeams:
+                return "Apple returned no developer teams for this account."
+            case .tooManyAttempts:
+                return "Apple limited sign-in attempts. Wait before trying again."
+            case .authenticationHandshakeFailed:
+                return "The authentication handshake could not be completed."
+            case .invalidAnisetteData:
+                return "The local Apple authentication data was incomplete."
+            case .userCancelled:
+                return "Apple sign-in was canceled."
+            default:
+                return "The developer service returned error code \((issue as NSError).code)."
+            }
+        }
+        if let issue = error as? ServerError {
+            switch issue {
+            case .underlyingError(let code, _):
+                return "Apple returned error code \(code)."
+            case .badServerResponse(let reason, let payload):
+                return responseDetail(reason) ?? responseDetail(payload) ?? "Apple returned an unexpected response."
+            case .invalidResponseFormat(let payload), .missingKey(_, let payload):
+                return responseDetail(payload) ?? "Apple returned an unexpected response."
+            }
+        }
+        if let issue = error as? URLError {
+            return "Network error \(issue.errorCode). Try signing in on Wi-Fi with LocalDevVPN disconnected."
+        }
+        return "System error code \((error as NSError).code)."
+    }
+
+    private static func responseDetail(_ body: String) -> String? {
+        let prefix = String(body.prefix(4096))
+        guard prefix.range(
+            of: #"\b(?:HTTP(?:/[0-9.]+)?\s+503|503\s+(?:Service\s+)?(?:Temporarily\s+)?Unavailable)\b"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil else { return nil }
+        return httpDetail(503)
+    }
+
+    private static func httpDetail(_ code: Int) -> String {
+        if code == 503 {
+            return "Apple returned HTTP 503 (service unavailable)."
+        }
+        return "The authentication request returned HTTP \(code)."
     }
 
     func importCertificate(data: Data, password: String, teamID: String) async throws {

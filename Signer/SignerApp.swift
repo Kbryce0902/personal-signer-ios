@@ -32,6 +32,9 @@ private struct SignerView: View {
                     if proof.busy { ProgressView() }
                     Text(proof.status)
                         .accessibilityIdentifier("proof-status")
+                    if let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String {
+                        LabeledContent("Signer build", value: build)
+                    }
                     if let expiration = proof.ownExpiration {
                         LabeledContent("Signer expires") { Text(expiration, format: .dateTime) }
                     }
