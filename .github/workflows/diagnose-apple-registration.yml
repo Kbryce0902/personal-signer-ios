@@ -5,38 +5,6 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Build and exercise the local provider without an Apple Account
-        run: |
-          set -euo pipefail
-          scratch="$(mktemp -d)"
-          trap 'rm -rf -- "$scratch"' EXIT
-          bash scripts/fetch-build-dependencies.sh
-          python3 -m venv "$scratch/venv"
-          "$scratch/venv/bin/pip" install --quiet --disable-pip-version-check unicorn==2.1.4
-          unicorn="$("$scratch/venv/bin/python" -c 'from pathlib import Path; import unicorn; print(Path(unicorn.__file__).parent)')"
-          curl --fail --silent --show-error --max-time 70 https://apps.mzstatic.com/content/android-apple-music-apk/applemusic.apk -o "$scratch/AppleMusic.apk"
-          for lib in libCoreADI.so libstoreservicescore.so; do
-            unzip -p "$scratch/AppleMusic.apk" "lib/arm64-v8a/$lib" > "$scratch/$lib"
-          done
-          native=".build-dependencies/AnisetteKit/Native"
-          g++ -std=c++17 -O2 -fPIC -shared -pthread -I"$unicorn/include" -I"$native/include" -I"$native" \
-            "$native/anisette_base.cpp" "$native/Loader/elf_loader_emulator.cpp" "$native/anisette_core_uc.cpp" \
-            "$unicorn/lib/libunicorn.a" -o "$scratch/libanisette-test.so"
-          printf '\nChecking the Apple server certificate chain with the runner trust store.\n'
-          openssl s_client -connect gsa.apple.com:443 -servername gsa.apple.com -verify_hostname gsa.apple.com -verify_return_error </dev/null 2>&1 | awk '/depth=|verify error|subject=|issuer=|Verify return code/' || true
-          curl -fsS https://www.apple.com/appleca/AppleIncRootCertificate.cer -o "$scratch/apple-root.cer"
-          curl -fsS https://www.apple.com/certificateauthority/AppleRootCA-G3.cer -o "$scratch/apple-root-g3.cer"
-          (cd "$scratch"; printf '%s\n' \
-            'b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024  apple-root.cer' \
-            '63343abfb89a6a03ebb57e9b3f5fa7be7c4f5c756f3017b3a8c488c3653e9179  apple-root-g3.cer' | sha256sum -c -)
-          "$scratch/venv/bin/python" scripts/diagnose-apple-registration.py "$scratch"
   alternative:
     runs-on: xcode-27
     timeout-minutes: 10
