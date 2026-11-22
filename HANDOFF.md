@@ -15,7 +15,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 - The proof checks the device, certificate, signing team and application identifier in the Apple profile before sending a bundle. It preserves the original signed app identity. The app never removes an installed app or revokes a signing certificate automatically.
 - Probe receipts depend on terminal completion from the paired installation proxy. Before submitting self-refresh, the signer records the expected profile UUID, expiry, build, signed resource stamp and app identity. The next launch checks them against the running copy before recording success. A failed or interrupted install leaves the previous receipt available.
 - The private key, Apple session and ADI state go in the device-only Keychain. Pairing records, the IPA, receipts and staging files use protected application support excluded from backup. The app disables signing and pairing library logs.
-- This proof has one managed target. Multi-app management, 48-hour and 24-hour notifications and best-effort background scheduling depend on passing the hardware tests. Keep the first proof in the foreground with the phone unlocked. iOS 27.2 has an upstream lock-related Remote Pairing failure report. [Upstream report](https://github.com/SideStore/SideStore/issues/1723)
+- Build 6 adds multi-app management and opt-in 48-hour and 24-hour notifications. Background scheduling remains pending. Keep the first proof in the foreground with the phone unlocked. iOS 27.2 has an upstream lock-related Remote Pairing failure report. [Upstream report](https://github.com/SideStore/SideStore/issues/1723)
 
 ## Exact build command
 
@@ -23,7 +23,7 @@ The local workspace is x86_64 Linux with no Xcode, Apple SDK or USB iPhone acces
 bash scripts/build-ipas.sh
 ```
 
-Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision, applies and verifies `scripts/anisette-cleanup.patch`, and verifies the AppleAuth v0.1.3 package archive against a pinned SHA-256. It rewraps AppleAuth’s static library for each slice in its own framework so Xcode can load it alongside IDevice without a duplicate header-map output. It builds `PersonalSigner` at build 5 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
+Use Xcode 27.2, the iPhoneOS SDK, Git and Python 3. The script fetches pinned local Swift packages for minimuxer and AnisetteKit. It checks the AnisetteKit revision, applies and verifies `scripts/anisette-cleanup.patch`, and verifies the AppleAuth v0.1.3 package archive against a pinned SHA-256. It rewraps AppleAuth’s static library for each slice in its own framework so Xcode can load it alongside IDevice without a duplicate header-map output. It builds `PersonalSigner` at build 6 and `StorageProbe` at builds 1 and 2. It uses `-configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -onlyUsePackageVersionsFromResolvedFile` with `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`. The unsigned IPAs go under `build/ipas`.
 
 The Actions workflow uses the standard `xcode-27` runner and selects Xcode 27.2. It signs in to neither Apple nor the test iPhone. Use the provenance recorded below to identify the exact source and runner for a test build.
 
@@ -82,7 +82,7 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 | Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | User reported trusted connection |
 | Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | User confirmed sign-in on build 5 on November 22, 2026. Also reported success on the first Storage Probe installation. PC power state and profile expiry were not recorded |
 | First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | User reported success following the first-install instructions. PC power state, install stamp and saved value were not independently recorded |
-| Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
+| Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | User reported success on iPhone. Exact expiry and PC power state were not recorded separately |
 | In-place upgrade | Import and install build 2 with build 1 still present. Confirm build 2, a new install stamp and the original saved value. | Pending |
 | Self-refresh | Choose **Refresh Probe, Then Signer**. Confirm the probe finishes before the signer updates. Reopen the signer and check the receipt, same identity, retained Keychain session and later expiry. A reinstall with the same expiry is partial evidence. | Pending |
 | Reboot with PC off | Reboot the iPhone, unlock, reconnect LocalDevVPN, and rediscover the port if needed. Refresh Storage Probe again and confirm the saved value. | Pending |
@@ -90,6 +90,14 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 | USB recovery | Reinstall the original signer IPA over USB with the same account and bundle identity. Rehearse in place, then repeat after a real expiry. Check that the signer launches and its stored setup remains. | Pending |
 | AetherMedia | After the proof passes, add support for its packaging and entitlements. Verify the existing signed identity before update, then confirm watch history and settings survive. | Pending |
 
+## Build 6 app imports
+
+Build 6 imports development IPAs with one iPhone app, displays per-app status, and keeps a protected archive and separate install receipt and pending record for each source bundle ID. It reads build 5's Probe receipt and moves its saved archive to the new import directory. The app accepts numeric build numbers with up to three components.
+
+For an app without a receipt, the installer checks its original bundle ID and the common same-team suffix used by the USB tool. An already installed app must expose an application identifier that matches the Apple-issued profile. Apps with receipts reuse their pinned signing identity. The installer leaves existing apps installed and sends the replacement only after validating the profile. An IPA whose existing copy used a different rename needs a build with the exact installed bundle identifier. The minimuxer app lookup patch is applied at build time to its pinned source.
+
+The first release supports single-app IPAs without app extensions or nested apps. It does not request restricted capabilities. Import accepts local archives up to 256 MB. Refresh All handles confirmed managed apps before the signer. Builds in Files can be replaced in place by importing the newer IPA. Expiration reminders at 48 and 24 hours are opt-in. Refresh remains manual in this build.
+
 ## Next implementation gate
 
-Build 5 sign-in succeeded on the iPhone. The user reported success on the first Storage Probe install. With the PC unplugged and powered off, refresh the same Probe build over LocalDevVPN. Verify that its stamp changes and the saved value survives. Record the expiration displayed by Personal Signer before and after the refresh. Continue the hardware matrix before expanding the proof.
+Install build 6 over the existing signer with the same USB signing options. Confirm the preserved Apple session and Probe receipt. Test the in-place Probe update, then an unsigned IPA from the user's own project. If the target is already installed, record the identity check and confirm app data survives the update. The self-refresh, reboot, interrupted refresh and USB recovery scenarios remain open.

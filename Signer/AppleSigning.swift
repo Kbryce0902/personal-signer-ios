@@ -149,7 +149,8 @@ final class AppleSigning {
 
     func sign(
         app: URL, name: String, bundleID: String, udid: String,
-        bootstrapIdentity: AppIdentity, existingIdentity: AppIdentity?
+        bootstrapIdentity: AppIdentity, existingIdentity: AppIdentity?,
+        installedApplicationID: String?
     ) async throws -> ProvisioningProfile {
         let context = try await signingSession(teamID: bootstrapIdentity.teamID)
         let team = context.team
@@ -184,7 +185,8 @@ final class AppleSigning {
             throw ProofIssue.message("Apple returned a profile that doesn't authorize this iPhone and development certificate. Import your existing Personal Team certificate or try again after Apple updates the profile.")
         }
         guard identity.bundleID == bundleID, identity.teamID == bootstrapIdentity.teamID,
-              existingIdentity == nil || existingIdentity == identity else {
+              existingIdentity == nil || existingIdentity == identity,
+              installedApplicationID == nil || installedApplicationID == identity.applicationID else {
             throw ProofIssue.message("The new app identity doesn't match the installed identity. Keep the original signed bundle ID and Apple team.")
         }
 

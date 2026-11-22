@@ -1,0 +1,134 @@
+diff --git a/DeviceGateway/DeviceGatewayAPI.swift b/DeviceGateway/DeviceGatewayAPI.swift
+index 0a581fb..77deecd 100644
+--- a/DeviceGateway/DeviceGatewayAPI.swift
++++ b/DeviceGateway/DeviceGatewayAPI.swift
+@@ -23,6 +23,20 @@ public struct PairedDeviceRecord: Sendable {
+     }
+ }
+ 
++public struct InstalledAppMetadata: Sendable {
++    public let bundleID: String
++    public let applicationID: String?
++    public let teamID: String?
++    public let build: String?
++
++    public init(bundleID: String, applicationID: String?, teamID: String?, build: String?) {
++        self.bundleID = bundleID
++        self.applicationID = applicationID
++        self.teamID = teamID
++        self.build = build
++    }
++}
++
+ public protocol DeviceGatewayAPI: AnyObject, Sendable {
+     var requiresUsbmuxd: Bool { get }
+     var pairingFileType: PairingProtocol { get }
+@@ -47,6 +61,7 @@ public protocol DeviceGatewayAPI: AnyObject, Sendable {
+     func installProvisioningProfile(profile: Data) async throws
+     func removeProvisioningProfile(id: String) async throws
+     func dumpProfiles(docsPath: String) async throws -> String
++    func lookupInstalledApp(bundleID: String) async throws -> InstalledAppMetadata?
+     func removeApp(bundleId: String) async throws
+     func sendIpaAfc(bundleId: String, ipaBytes: Data) async throws
+     func sendAppBundleAfc(bundleId: String, appURL: URL) async throws
+@@ -93,3 +108,10 @@ public extension DeviceGatewayAPI {
+         getPort(for: pairingFileType)
+     }
+ }
++
++
++public extension DeviceGatewayAPI {
++    func lookupInstalledApp(bundleID: String) async throws -> InstalledAppMetadata? {
++        throw CocoaError(.featureUnsupported)
++    }
++}
+diff --git a/DeviceGateway/idevice/IdeviceGateway.swift b/DeviceGateway/idevice/IdeviceGateway.swift
+index e9310d0..fb59601 100644
+--- a/DeviceGateway/idevice/IdeviceGateway.swift
++++ b/DeviceGateway/idevice/IdeviceGateway.swift
+@@ -972,6 +972,56 @@ public final class IdeviceGateway: BaseDeviceGateway, DeviceGatewayAPI, @uncheck
+         }
+     }
+ 
++    public func lookupInstalledApp(bundleID: String) async throws -> InstalledAppMetadata? {
++        try await withFFIDispatch {
++            try self.verifyInitialized()
++            return try self.performWithEitherService(
++                connectRP: installation_proxy_connect_rsd,
++                connectLockdown: installation_proxy_connect,
++                cleanup: installation_proxy_client_free,
++                serviceName: "instproxy"
++            ) { client in
++                var result: UnsafeMutableRawPointer?
++                var count = 0
++                let error = bundleID.withCString { identifier in
++                    var identifiers: [UnsafePointer<Int8>?] = [identifier]
++                    return installation_proxy_get_apps(client, nil, &identifiers, 1, &result, &count)
++                }
++                if let error {
++                    defer { idevice_error_free(error) }
++                    throw IdeviceGatewayError(.serviceError, reason: "Installed app lookup failed")
++                }
++                guard count > 0 else { return nil }
++                guard let result else {
++                    throw IdeviceGatewayError(.serviceError, reason: "Installed app lookup returned no metadata")
++                }
++                let entries = result.assumingMemoryBound(to: plist_t?.self)
++                defer {
++                    for index in 0..<count {
++                        if let entry = entries[index] { plist_free(entry) }
++                    }
++                    free(result)
++                }
++                guard count == 1, let app = entries[0] else {
++                    throw IdeviceGatewayError(.serviceError, reason: "Installed app lookup returned ambiguous metadata")
++                }
++                func string(_ key: String, in dictionary: plist_t) -> String? {
++                    guard let value = plist_dict_get_item(dictionary, key) else { return nil }
++                    return self.getRustPlistString(value)
++                }
++                let entitlements = plist_dict_get_item(app, "Entitlements")
++                return InstalledAppMetadata(
++                    bundleID: string("CFBundleIdentifier", in: app) ?? bundleID,
++                    applicationID: entitlements.flatMap { string("application-identifier", in: $0) }
++                        ?? string("ApplicationIdentifier", in: app),
++                    teamID: entitlements.flatMap { string("com.apple.developer.team-identifier", in: $0) }
++                        ?? string("TeamIdentifier", in: app),
++                    build: string("CFBundleVersion", in: app)
++                )
++            }
++        }
++    }
++
+     private func getAppPaths(appId: String) throws -> (container: String, bundlePath: String, executableName: String?) {
+         debugLog("[IdeviceGateway] getAppPaths() called, appId: \(appId)")
+         return try performWithEitherService(
+diff --git a/Sources/MinimuxerApi.swift b/Sources/MinimuxerApi.swift
+index 419b667..509cdf2 100644
+--- a/Sources/MinimuxerApi.swift
++++ b/Sources/MinimuxerApi.swift
+@@ -113,6 +113,7 @@ public protocol MinimuxerAPI: AnyObject {
+     func sendAppBundleAfc(bundleId: String, appURL: URL) async throws
+     func installIpa(bundleId: String) async throws
+     func installAppBundle(bundleId: String, appName: String) async throws
++    func lookupInstalledApp(bundleID: String) async throws -> InstalledAppMetadata?
+     func removeApp(bundleId: String) async throws
+     func wipeContainer(identifier: String) async throws
+     func debugApp(appId: String) async throws
+diff --git a/Sources/MinimuxerImpl.swift b/Sources/MinimuxerImpl.swift
+index 4c05971..4fa8ffb 100644
+--- a/Sources/MinimuxerImpl.swift
++++ b/Sources/MinimuxerImpl.swift
+@@ -442,6 +442,12 @@ final internal class MinimuxerImpl: MinimuxerAPI {
+         }
+     }
+ 
++    func lookupInstalledApp(bundleID: String) async throws(MinimuxerError) -> InstalledAppMetadata? {
++        try await runWithChecks("while checking installed app identity", catchAll: MinimuxerError.lookupApps) {
++            try await self.gateway.lookupInstalledApp(bundleID: bundleID)
++        }
++    }
++
+     func removeApp(bundleId: String) async throws(MinimuxerError) {
+         try await runWithChecks("while removing App", catchAll: MinimuxerError.uninstallApp) {
+             try await self.gateway.removeApp(bundleId: bundleId)

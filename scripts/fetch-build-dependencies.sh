@@ -5,6 +5,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dependencies_dir="$repo_dir/.build-dependencies"
 muxer_dir="$dependencies_dir/minimuxer"
 muxer_commit=12be70dc2627307a16bfd2dc7a009080d5bec909
+muxer_patch="$repo_dir/scripts/minimuxer-app-lookup.patch"
 anisette_dir="$dependencies_dir/AnisetteKit"
 anisette_commit=db8b41022697b6c19be8a5f01a1ce834145a2a26
 anisette_patch="$repo_dir/scripts/anisette-cleanup.patch"
@@ -29,10 +30,11 @@ fetch_checkout() {
 
 mkdir -p "$dependencies_dir"
 # minimuxer references Common and DeviceGateway as relative Swift packages.
-fetch_checkout "$muxer_dir" https://github.com/SideStore/minimuxer.git "$muxer_commit"
+fetch_checkout "$muxer_dir" https://github.com/SideStore/minimuxer.git "$muxer_commit" "$muxer_patch"
 if [[ "$(git -C "$muxer_dir" rev-parse HEAD)" != "$muxer_commit" ]] ||
-   [[ -n "$(git -C "$muxer_dir" status --porcelain)" ]]; then
-  printf '%s\n' 'The local minimuxer source differs from the pinned checkout.' >&2
+   [[ -n "$(git -C "$muxer_dir" ls-files --others --exclude-standard)" ]] ||
+   ! git -C "$muxer_dir" -c core.abbrev=7 diff --no-color --no-ext-diff HEAD | cmp -s "$muxer_patch" -; then
+  printf '%s\n' 'The local minimuxer source differs from the pinned checkout with the app lookup patch.' >&2
   exit 1
 fi
 

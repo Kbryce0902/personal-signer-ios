@@ -79,30 +79,27 @@ private struct SignerView: View {
                 }
                 .disabled(disabled)
 
-                Section("Storage Probe") {
-                    Button("Import Test IPA") { importFile(.probe) }
-                    if let selection = proof.selection {
-                        LabeledContent("Selected", value: "\(selection.name) · Build \(selection.build)")
-                        Text(selection.bundleID).font(.footnote).foregroundStyle(.secondary)
-                    }
-                    if let receipt = proof.state.probe {
-                        LabeledContent("Installed build", value: String(receipt.build))
-                        LabeledContent("Expires") { Text(receipt.expiresAt, format: .dateTime) }
-                        LabeledContent("Last confirmed") { Text(receipt.confirmedAt, format: .dateTime) }
-                    }
-                    Button("Install or Refresh Probe") {
-                        Task { await proof.installProbe(peer: peer, port: port, refreshSigner: false) }
+                Section("Apps") {
+                    Button("Import IPA") { importFile(.ipa) }
+                    Button("Refresh All") {
+                        Task { await proof.refreshAll(peer: peer, port: port) }
                     }
                     .disabled(!canInstall)
-                    Button("Refresh Probe, Then Signer") {
-                        Task { await proof.installProbe(peer: peer, port: port, refreshSigner: true) }
+                    Button("Enable Expiration Reminders") {
+                        Task { await proof.enableReminders() }
                     }
-                    .disabled(!canInstall || proof.state.probe == nil)
                 }
                 .disabled(disabled)
+
+                ForEach(proof.apps) { app in
+                    appSection(app)
+                }
             }
             .navigationTitle("Personal Signer")
-            .task { proof.start() }
+            .task {
+                proof.start()
+                await proof.updateReminders()
+            }
             .sheet(isPresented: $showDiscovery) { discoverySheet }
             .sheet(isPresented: $showAccount, onDismiss: { password = "" }) { accountSheet }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item]) { result in
@@ -122,7 +119,32 @@ private struct SignerView: View {
     }
 
     private var canInstall: Bool {
-        proof.pairingImported && proof.signedIn && proof.selection != nil
+        proof.pairingImported && proof.signedIn
+    }
+
+    private func appSection(_ app: ImportedApp) -> some View {
+        let receipt = proof.state.receipt(for: app.bundleID)
+        let pending = proof.state.pendingInstall(for: app.bundleID)
+        return Section(app.name) {
+            Text(app.bundleID).font(.footnote).foregroundStyle(.secondary)
+            if let receipt, receipt.identity.bundleID != app.bundleID {
+                LabeledContent("Installed bundle ID", value: receipt.identity.bundleID)
+            }
+            LabeledContent("Imported build", value: app.build.description)
+            if let receipt {
+                LabeledContent("Installed build", value: receipt.build.description)
+                LabeledContent("Expires") { Text(receipt.expiresAt, format: .dateTime) }
+                LabeledContent("Last confirmed") { Text(receipt.confirmedAt, format: .dateTime) }
+                LabeledContent("Status", value: pending != nil ? "Retry needed" : (receipt.expiresAt > Date() ? "Installed" : "Expired"))
+            } else {
+                LabeledContent("Status", value: pending == nil ? "Ready to sign" : "Retry needed")
+            }
+            Button(receipt == nil ? "Sign and Install" : "Refresh") {
+                Task { await proof.install(app, peer: peer, port: port) }
+            }
+            .disabled(!canInstall)
+        }
+        .disabled(disabled)
     }
 
     private func importFile(_ kind: SetupFile) {

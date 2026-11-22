@@ -2,6 +2,13 @@ import Foundation
 import Minimuxer
 import SideSign
 
+struct InstalledApp {
+    let bundleID: String
+    let applicationID: String?
+    let teamID: String?
+    let build: String?
+}
+
 struct TunnelSettings: Equatable {
     let peer: String
     let remotePairingPort: UInt16
@@ -102,6 +109,11 @@ final class PairedDevice {
 
     func stage(_ app: URL, as stagingID: String) async throws {
         try await muxer.core.sendAppBundleAfc(bundleId: stagingID, appURL: app)
+    }
+
+    func installedApp(bundleID: String) async throws -> InstalledApp? {
+        guard let app = try await muxer.core.lookupInstalledApp(bundleID: bundleID) else { return nil }
+        return InstalledApp(bundleID: app.bundleID, applicationID: app.applicationID, teamID: app.teamID, build: app.build)
     }
 
     func install(stagingID: String, appName: String) async throws {

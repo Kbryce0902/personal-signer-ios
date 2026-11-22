@@ -2,9 +2,10 @@ import Foundation
 import Minimuxer
 import SideSign
 import SwiftUI
+import UserNotifications
 
 enum SetupFile: String, Identifiable {
-    case pairing, probe, certificate
+    case pairing, ipa, certificate
 
     var id: String { rawValue }
 }
@@ -16,7 +17,7 @@ final class ProofController: ObservableObject {
     @Published private(set) var status = "Open this build on the iPhone with its USB-installed development profile."
     @Published private(set) var pairingImported = false
     @Published private(set) var signedIn = false
-    @Published private(set) var selection: ProbeBuild?
+    @Published private(set) var apps: [ImportedApp] = []
     @Published private(set) var state = ProofState()
     @Published private(set) var ownExpiration: Date?
     @Published private(set) var verification: TwoFactorRequest?
@@ -43,9 +44,7 @@ final class ProofController: ObservableObject {
             ownExpiration = profile.expirationDate
             pairingImported = device.hasPairing
             signedIn = try apple.isSignedIn(teamID: identity.teamID)
-            if FileManager.default.fileExists(atPath: files.ipaURL.path) {
-                selection = try? files.inspectProbe(at: files.ipaURL)
-            }
+            apps = try files.importedApps()
             try files.cleanStagingOnLaunch()
             runtime = Runtime(files: files, apple: apple, device: device)
             ready = true
@@ -63,9 +62,11 @@ final class ProofController: ObservableObject {
                 try runtime.device.importPairing(from: url)
                 pairingImported = true
                 status = "Pairing record imported. Run Check Connection to verify it."
-            case .probe:
-                selection = try runtime.files.importProbe(from: url)
-                status = "Storage Probe is ready to sign."
+            case .ipa:
+                let signer = try AppIdentity(profile: Self.runningProfile())
+                let app = try runtime.files.importIPA(from: url, signerBundleID: signer.bundleID)
+                apps = try runtime.files.importedApps()
+                status = "\(app.name) is ready to sign."
             case .certificate:
                 let bytes = try ProofFiles.readImport(url, maxBytes: 1024 * 1024)
                 let identity = try AppIdentity(profile: Self.runningProfile())
@@ -108,52 +109,99 @@ final class ProofController: ObservableObject {
         }
     }
 
-    func installProbe(peer: String, port: String, refreshSigner: Bool) async {
-        await run("Connecting to this iPhone…", fallback: "The install was not confirmed. Check the local tunnel and Apple sign-in before retrying the same build.") { runtime in
+    var installedApps: [ImportedApp] {
+        apps.filter { state.receipt(for: $0.bundleID) != nil }
+    }
+
+    func install(_ app: ImportedApp, peer: String, port: String) async {
+        await run("Connecting to this iPhone…", fallback: "The install was not confirmed. Check the local tunnel and Apple sign-in, then retry.") { runtime in
             let profile = try Self.runningProfile()
             let udid = try await connect(runtime, peer: peer, port: port, profile: profile)
-            let signerIdentity = try AppIdentity(profile: profile)
-            guard let selection else {
-                throw ProofIssue.message("Import Storage Probe from Files first.")
-            }
-            let expected = state.probe?.identity ?? pendingIdentity(forSigner: false)
-            let minimumBuild = state.probe?.build ?? 0
-            guard selection.build >= minimumBuild else {
-                throw ProofIssue.message("Choose the installed build or a newer Storage Probe build.")
-            }
-
-            try await performInstall(
-                runtime, build: selection.build, bundleID: selection.bundleID,
-                name: "Storage Probe", udid: udid, signerIdentity: signerIdentity,
-                expectedIdentity: expected, isSigner: false
-            )
-            if refreshSigner {
-                let ownBuild = try Self.runningBuildNumber()
-                try await performInstall(
-                    runtime, build: ownBuild, bundleID: signerIdentity.bundleID,
-                    name: "Personal Signer", udid: udid, signerIdentity: signerIdentity,
-                    expectedIdentity: signerIdentity, isSigner: true
-                )
-            }
+            try await install(app, runtime: runtime, udid: udid, signer: AppIdentity(profile: profile))
         }
     }
 
+    func refreshAll(peer: String, port: String) async {
+        await run("Connecting to this iPhone…", fallback: "Refresh All stopped. Retry after resolving the reported issue.") { runtime in
+            let profile = try Self.runningProfile()
+            let signer = try AppIdentity(profile: profile)
+            let udid = try await connect(runtime, peer: peer, port: port, profile: profile)
+            for app in installedApps {
+                try await install(app, runtime: runtime, udid: udid, signer: signer)
+            }
+            try await performInstall(
+                runtime, build: Self.runningBuildNumber(), bundleID: signer.bundleID,
+                name: "Personal Signer", udid: udid, signerIdentity: signer,
+                expectedIdentity: signer, installed: nil, sourceBundleID: nil
+            )
+        }
+    }
+
+    private func install(_ app: ImportedApp, runtime: Runtime, udid: String, signer: AppIdentity) async throws {
+        let receipt = state.receipt(for: app.bundleID)
+        let pending = state.pendingInstall(for: app.bundleID)
+        let pinned = receipt?.identity ?? pending?.identity
+        status = "Checking the installed identity for \(app.name)…"
+        let installed: InstalledApp?
+        let targetID: String
+        if let pinned {
+            targetID = pinned.bundleID
+            installed = try await runtime.device.installedApp(bundleID: targetID)
+        } else {
+            let alternateID = app.bundleID + "." + signer.teamID
+            let original = try await runtime.device.installedApp(bundleID: app.bundleID)
+            let suffixed = ImportedApp.supportsBundleID(alternateID)
+                ? try await runtime.device.installedApp(bundleID: alternateID) : nil
+            guard original == nil || suffixed == nil else {
+                throw ProofIssue.message("Two installed copies of \(app.name) match this IPA. Import the IPA with the exact installed bundle identifier.")
+            }
+            installed = original ?? suffixed
+            targetID = installed?.bundleID ?? app.bundleID
+            if let installed, installed.applicationID?.isEmpty != false {
+                throw ProofIssue.message("iOS did not report the signing identity for \(app.name). Keep the installed copy and use its original signing tool for updates.")
+            }
+        }
+        guard targetID == app.bundleID || targetID == app.bundleID + "." + signer.teamID,
+              targetID != signer.bundleID else {
+            throw ProofIssue.message("The installed bundle identifier differs from the expected identity for \(app.name).")
+        }
+        if let installed {
+            guard installed.bundleID == targetID,
+                  installed.teamID.map({ $0 == signer.teamID }) ?? true,
+                  installed.applicationID.map({ id in
+                      id.hasSuffix("." + targetID) && (pinned == nil || pinned?.applicationID == id)
+                  }) ?? true else {
+                throw ProofIssue.message("The installed copy of \(app.name) has a different signing identity. Keep it installed and use the original Apple Account and bundle ID.")
+            }
+            if let raw = installed.build, let current = AppBuildNumber(raw), app.build < current {
+                throw ProofIssue.message("Import build \(current) or newer for \(app.name).")
+            }
+        }
+        if let minimum = [receipt?.build, pending?.build].compactMap({ $0 }).max(), app.build < minimum {
+            throw ProofIssue.message("Import build \(minimum) or newer for \(app.name).")
+        }
+
+        try await performInstall(
+            runtime, build: app.build, bundleID: targetID, name: app.name, udid: udid,
+            signerIdentity: signer, expectedIdentity: pinned, installed: installed, sourceBundleID: app.bundleID
+        )
+    }
+
     private func performInstall(
-        _ runtime: Runtime, build: Int, bundleID: String, name: String, udid: String,
-        signerIdentity: AppIdentity, expectedIdentity: AppIdentity?, isSigner: Bool
+        _ runtime: Runtime, build: AppBuildNumber, bundleID: String, name: String, udid: String,
+        signerIdentity: AppIdentity, expectedIdentity: AppIdentity?, installed: InstalledApp?,
+        sourceBundleID: String?
     ) async throws {
+        let isSigner = sourceBundleID == nil
         status = "Preparing \(name)…"
         let files = runtime.files
         let stage = try files.newStagingDirectory()
         defer { try? FileManager.default.removeItem(at: stage) }
 
         let app: URL
-        if isSigner {
-            app = stage.appendingPathComponent("PersonalSigner.app", isDirectory: true)
-            try FileManager.default.copyItem(at: Bundle.main.bundleURL, to: app)
-        } else {
-            let info = try files.inspectProbe(at: files.ipaURL, extractTo: stage)
-            guard info.build == build, info.bundleID == bundleID else {
+        if let sourceBundleID {
+            let info = try files.inspectIPA(at: files.ipaURL(for: sourceBundleID), extractTo: stage)
+            guard info.build == build, info.bundleID == sourceBundleID else {
                 throw ProofIssue.message("The selected IPA changed. Import the intended build again.")
             }
             let payload = stage.appendingPathComponent("Payload", isDirectory: true)
@@ -164,6 +212,12 @@ final class ProofController: ObservableObject {
                 throw ProofIssue.message("The IPA must contain one app.")
             }
             app = only
+            if sourceBundleID != bundleID {
+                try files.setBundleID(bundleID, for: app)
+            }
+        } else {
+            app = stage.appendingPathComponent("PersonalSigner.app", isDirectory: true)
+            try FileManager.default.copyItem(at: Bundle.main.bundleURL, to: app)
         }
 
         let stamp = UUID()
@@ -171,50 +225,55 @@ final class ProofController: ObservableObject {
         status = "Obtaining Apple provisioning and signing \(name)…"
         let profile = try await runtime.apple.sign(
             app: app, name: name, bundleID: bundleID, udid: udid,
-            bootstrapIdentity: signerIdentity, existingIdentity: expectedIdentity
+            bootstrapIdentity: signerIdentity, existingIdentity: expectedIdentity,
+            installedApplicationID: installed?.applicationID
         )
         let pending = PendingInstall(
             stamp: stamp, isSigner: isSigner, identity: try AppIdentity(profile: profile),
             build: build, profileID: profile.uuid, expiresAt: profile.expirationDate,
-            previousExpiration: isSigner ? ownExpiration : state.probe?.expiresAt
+            previousExpiration: sourceBundleID.flatMap { state.receipt(for: $0)?.expiresAt } ?? (isSigner ? ownExpiration : nil),
+            sourceBundleID: sourceBundleID
         )
         let stagingID = "dev.kellen.personalsigner." + stamp.uuidString
         status = "Sending \(name) to the paired installer…"
         try await runtime.device.stage(app, as: stagingID)
         var next = state
-        next.pending = pending
+        if let sourceBundleID {
+            next.setPending(pending, for: sourceBundleID)
+        } else {
+            next.pending = pending
+        }
         try saveState(next, files: files)
         status = "Waiting for iOS to install \(name)…"
         try await runtime.device.install(stagingID: stagingID, appName: app.lastPathComponent)
 
-        if isSigner {
+        guard let sourceBundleID else {
             waitingForRelaunch = true
             status = "iOS reported completion. Reopen Personal Signer to verify the running copy."
             return
         }
-        next.probe = pending.receipt()
-        next.pending = nil
+        next.record(pending.receipt(), for: sourceBundleID)
+        next.setPending(nil, for: sourceBundleID)
         try saveState(next, files: files)
+        await scheduleReminders(name: name, id: sourceBundleID, expiration: pending.expiresAt)
         if let previous = pending.previousExpiration, pending.expiresAt <= previous {
-            status = "iOS confirmed installation. The profile expiration didn't advance."
+            status = "iOS confirmed \(name). The profile expiration didn't advance."
         } else {
-            status = "iOS confirmed Storage Probe. Open it to check the saved value and build."
+            status = "iOS confirmed \(name). Open it to verify the installed copy."
         }
     }
 
     private func checkPreviousInstall(profile: ProvisioningProfile, files: ProofFiles) {
         guard let pending = state.pending else {
-            if state.probe != nil {
-                status = "Ready. The last confirmed Storage Probe install is shown below."
-            } else if pairingImported && signedIn {
-                status = "Ready to check the paired connection and install Storage Probe."
+            if pairingImported && signedIn {
+                status = "Ready to install or refresh apps."
             } else {
                 status = "Import the pairing record and check Apple setup to begin."
             }
             return
         }
         guard pending.isSigner else {
-            status = "Storage Probe installation was interrupted. Retry the same build."
+            status = "An app installation was interrupted. Retry that app with the same build."
             return
         }
         let stampURL = Bundle.main.bundleURL.appendingPathComponent(ProofFiles.stampName)
@@ -257,9 +316,49 @@ final class ProofController: ObservableObject {
         return device
     }
 
-    private func pendingIdentity(forSigner: Bool) -> AppIdentity? {
-        guard let pending = state.pending, pending.isSigner == forSigner else { return nil }
-        return pending.identity
+    func enableReminders() async {
+        guard !busy else { return }
+        let center = UNUserNotificationCenter.current()
+        do {
+            guard try await center.requestAuthorization(options: [.alert, .sound]) else {
+                status = "Allow Personal Signer notifications in iPhone Settings to receive expiration reminders."
+                return
+            }
+            await updateReminders()
+            status = "Expiration reminders are enabled."
+        } catch {
+            status = "Expiration reminders could not be enabled."
+        }
+    }
+
+    func updateReminders() async {
+        if let ownExpiration {
+            await scheduleReminders(name: "Personal Signer", id: "signer", expiration: ownExpiration)
+        }
+        for app in installedApps {
+            if let receipt = state.receipt(for: app.bundleID) {
+                await scheduleReminders(name: app.name, id: app.bundleID, expiration: receipt.expiresAt)
+            }
+        }
+    }
+
+    private func scheduleReminders(name: String, id: String, expiration: Date) async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+        let hours = [48, 24]
+        let requestIDs = hours.map { "expires.\(id).\($0)" }
+        center.removePendingNotificationRequests(withIdentifiers: requestIDs)
+        for (hoursRemaining, requestID) in zip(hours, requestIDs) {
+            let interval = expiration.timeIntervalSinceNow - Double(hoursRemaining * 3600)
+            guard interval >= 1 else { continue }
+            let content = UNMutableNotificationContent()
+            content.title = "\(name) expires in \(hoursRemaining) hours"
+            content.body = "Open Personal Signer to refresh it."
+            content.sound = .default
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+            try? await center.add(UNNotificationRequest(identifier: requestID, content: content, trigger: trigger))
+        }
     }
 
     private func saveState(_ updated: ProofState, files: ProofFiles) throws {
@@ -298,9 +397,9 @@ final class ProofController: ObservableObject {
         return profile
     }
 
-    private static func runningBuildNumber() throws -> Int {
+    private static func runningBuildNumber() throws -> AppBuildNumber {
         guard let raw = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
-              let build = Int(raw), build > 0 else {
+              let build = AppBuildNumber(raw) else {
             throw ProofIssue.message("The running signer's build number is invalid.")
         }
         return build
@@ -317,7 +416,7 @@ final class ProofController: ObservableObject {
             case .tooManyCertificates:
                 return "Apple's certificate limit was reached. Import the existing development certificate from your USB installer."
             case .bundleIdentifierUnavailable:
-                return "The test bundle ID is unavailable to this Personal Team. Check that the same signed identity is in use."
+                return "The app’s bundle ID is unavailable to this Personal Team. Check that the same signed identity is in use."
             case .accountRepairRequired:
                 return "Apple requires an account action. Complete it on Apple's account website and sign in again."
             case .userCancelled:
@@ -343,6 +442,8 @@ final class ProofController: ObservableObject {
                 return "The pairing couldn't be authenticated. Export a new Remote Pairing record over USB."
             case .noConnection, .notReachable, .noVPN, .invalidVPN, .noDevice:
                 return "Connect LocalDevVPN and Wi-Fi, unlock the iPhone, and check the Remote Pairing port."
+            case .lookupApps:
+                return "Couldn't check the installed app identity. Unlock the iPhone and reconnect LocalDevVPN before retrying."
             case .installApp:
                 return "iOS didn't confirm installation. Check Developer Mode, developer trust, the three-app limit, and the existing app's signing identity. You can retry this build."
             default:
