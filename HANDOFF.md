@@ -78,9 +78,9 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 | Scenario | Acceptance evidence | Result |
 | --- | --- | --- |
-| USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch through build 3 |
+| USB bootstrap | Install the unsigned signer over USB using iLoader and open it on the iPhone. | User confirmed install and launch through build 5 |
 | Trusted Remote Pairing | Import the USB Remote Pairing record. With USB unplugged, **Check Connection** receives a live response from this iPhone. | User reported trusted connection |
-| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | Build 3 reported HTTP `401`, then ADI `-45063`. Build 5 provider registered successfully in a standalone macOS test. Build 5 on the iPhone is pending |
+| Apple authentication and provisioning | With the PC off, Apple sign-in and 2FA succeed with local ADI. Apple issues a development certificate and profile for the correct team and iPhone. | User confirmed sign-in on build 5 on November 22, 2026. The PC power state during sign-in and first on-device development profile issuance remain unverified |
 | First install | With the PC unplugged and off, import build 1. Storage Probe opens with build 1 and a new install stamp. Save a value such as `probe-431`. | Pending |
 | Repeat refresh | Refresh build 1. The install stamp changes and the saved value remains. Repeat when Apple issues a later expiry and record the new date. | Pending |
 | In-place upgrade | Import and install build 2 with build 1 still present. Confirm build 2, a new install stamp and the original saved value. | Pending |
@@ -92,4 +92,4 @@ Record the iOS build, signer build, terminal result and profile expiration befor
 
 ## Next implementation gate
 
-Install build 5 in place using the existing USB signing identity. On the iPhone, run **Check Apple Setup**, then sign in to the original Personal Team and verify a development profile. Validate the iPhone workflow before expanding the proof. Once Apple sign-in and provisioning succeed on the same Personal Team, continue the PC-off hardware matrix.
+Build 5 sign-in succeeded on the iPhone. With the PC unplugged and off, connect LocalDevVPN and verify the paired connection. Import the unsigned Storage Probe build 1 and confirm Apple profile issuance and first installation. Open the Probe and save a value before testing an in-place refresh. Continue the hardware matrix before expanding the proof.
